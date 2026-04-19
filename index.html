@@ -28,24 +28,19 @@
       padding:8px 10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer
     }
     .tab.active{background:var(--accent);border-color:var(--accent);color:#0f0f0f}
-
     main{padding:14px;max-width:1200px;margin:0 auto}
     .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .spacer{flex:1}
     .pill{background:var(--surface2);border:1px solid var(--border);padding:6px 10px;border-radius:999px;color:var(--dim);font-size:12px}
     .hint{color:var(--dim);font-size:12px;margin-top:10px}
-    .btn{
-      border:none;background:var(--accent);color:#0f0f0f;font-weight:900;
-      padding:10px 12px;border-radius:10px;cursor:pointer
-    }
+    .btn{border:none;background:var(--accent);color:#0f0f0f;font-weight:900;padding:10px 12px;border-radius:10px;cursor:pointer}
     .btn.secondary{background:var(--surface2);border:1px solid var(--border);color:var(--text)}
     select, input[type="range"], input[type="number"]{
       background:var(--surface2);border:1px solid var(--border);color:var(--text);
       padding:10px 12px;border-radius:10px
     }
     input[type="number"]{width:92px}
-
     .views > section{display:none}
     .views > section.active{display:block}
 
@@ -68,9 +63,7 @@
       font-size:12px;padding:6px;text-align:center
     }
 
-    /* Stats bars */
-    .statsgrid{display:grid;grid-template-columns:1fr;gap:12px}
-    @media(min-width:900px){.statsgrid{grid-template-columns:1.3fr .7fr}}
+    /* Stats barlist */
     .bars{display:flex;flex-direction:column;gap:10px;margin-top:10px}
     .barrow{
       display:flex;gap:10px;align-items:center;
@@ -102,10 +95,7 @@
     .modal h3{margin:0 0 6px 0}
     .sub{color:var(--dim);font-size:12px;font-family:var(--mono);margin-bottom:12px}
     .choices{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-    .choice{
-      border:2px solid transparent;border-radius:12px;min-height:44px;
-      font-weight:900;font-size:12px;cursor:pointer;padding:10px 8px
-    }
+    .choice{border:2px solid transparent;border-radius:12px;min-height:44px;font-weight:900;font-size:12px;cursor:pointer;padding:10px 8px}
     .choice.sel{border-color:#fff}
     .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
 
@@ -113,7 +103,7 @@
       padding:10px 14px;border-radius:12px;opacity:0;transform:translateY(12px);transition:.25s;z-index:60}
     .toast.show{opacity:1;transform:translateY(0)}
 
-    /* Advanced stats */
+    /* Adv stats legend rows */
     #view-advstats_act .aa-row{display:flex;align-items:center;gap:10px;margin:6px 0;color:var(--text);font-size:13px}
     #view-advstats_act .aa-swatch{width:12px;height:12px;border-radius:4px;flex:0 0 12px}
     #view-advstats_act .aa-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -135,7 +125,7 @@
 <main>
   <div class="views">
 
-    <!-- ====================== SEMAINE ====================== -->
+    <!-- SEMAINE -->
     <section id="view-planning" class="active">
       <div class="card">
         <div class="row">
@@ -165,7 +155,7 @@
       </div>
     </section>
 
-    <!-- ====================== STATISTIQUES (PRINCIPAL) ====================== -->
+    <!-- STATISTIQUES (principal) -->
     <section id="view-stats">
       <div class="card" style="margin-bottom:12px">
         <div class="row">
@@ -220,26 +210,18 @@
         </div>
 
         <div class="hint">
-          Le diviseur ne filtre pas les semaines : il sert uniquement à calculer la moyenne. En Année scolaire, le bonus été est inclus dans le total sans augmenter le diviseur.
+          Le diviseur ne filtre pas les semaines. En Année scolaire, le bonus été est inclus dans le total sans augmenter le diviseur.
         </div>
       </div>
 
-      <div class="statsgrid">
-        <div class="card">
-          <div style="font-weight:900">Réalisé vs attendu (par activité)</div>
-          <div class="hint">Renseigne l’attendu pour la période choisie (ou laisse vide).</div>
-          <div class="bars" id="bars"></div>
-        </div>
-
-        <div class="card mini">
-          <div style="font-weight:900">Évolution (heures actives / semaine)</div>
-          <div class="hint">Série sur la période sélectionnée.</div>
-          <div id="spark"></div>
-        </div>
+      <div class="card">
+        <div style="font-weight:900">Réalisé vs attendu (par activité)</div>
+        <div class="hint">Renseigne l’attendu pour la période choisie (ou laisse vide).</div>
+        <div class="bars" id="bars"></div>
       </div>
     </section>
 
-    <!-- ====================== PRÉ-REMPLISSAGE ====================== -->
+    <!-- PRÉ-REMPLISSAGE -->
     <section id="view-prefill">
       <div class="card">
         <div class="row">
@@ -254,7 +236,7 @@
         </div>
 
         <div class="hint">
-          Crée une semaine modèle ici, puis applique-la à une ou plusieurs semaines. Ensuite tu ajustes (ex : semaine 37) dans l’onglet Semaine.
+          Crée une semaine modèle puis applique-la à plusieurs semaines. Ensuite tu ajustes (ex : S37) dans l’onglet Semaine.
         </div>
 
         <div style="height:12px"></div>
@@ -273,9 +255,7 @@
             </div>
 
             <div class="hint" id="pfCount">0 semaine sélectionnée</div>
-
             <div style="height:10px"></div>
-
             <div style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02);max-height:360px;overflow:auto" id="pfWeekList"></div>
 
             <div style="height:12px"></div>
@@ -294,7 +274,6 @@
               </label>
 
               <button class="btn" id="pfApply">Appliquer</button>
-              <div class="hint" style="margin-top:8px">Conseil : laisse “Inclure Occupation” décoché pour n’appliquer que ce que tu as renseigné.</div>
             </div>
           </div>
 
@@ -320,7 +299,7 @@
       </div>
     </section>
 
-    <!-- ====================== STATISTIQUES AVANCÉES (ACTIVITÉS) ====================== -->
+    <!-- STATISTIQUES AVANCÉES (activités cochées) -->
     <section id="view-advstats_act">
       <div class="card">
         <div class="row">
@@ -335,10 +314,10 @@
 
           <div class="spacer"></div>
 
-          <div class="pill">Semaines période :</div>
+          <div class="pill">Semaines :</div>
           <div class="pill"><b id="aaWeeks" style="color:var(--text)">0</b></div>
 
-          <div class="pill">Total (sélection) :</div>
+          <div class="pill">Total :</div>
           <div class="pill"><b id="aaTotal" style="color:var(--text)">0</b> h</div>
 
           <div class="pill">Moyenne :</div>
@@ -375,13 +354,14 @@
             </div>
           </div>
         </div>
+
       </div>
     </section>
 
   </div>
 </main>
 
-<!-- Modal principal (Semaine) -->
+<!-- Modal principal -->
 <div class="overlay" id="overlay">
   <div class="modal" role="dialog" aria-modal="true">
     <h3 id="mTitle">Modifier</h3>
@@ -396,6 +376,7 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- ✅ SCRIPT (le plus important : il doit exister !) -->
 <script>
 /* =======================
    CONFIG
@@ -414,42 +395,38 @@ const COLORS = {
 /* =======================
    PÉRIODES (tes règles)
 ======================= */
-const T1 = Array.from({length:(48-36+1)}, (_,i)=>36+i);                       // 36..48
-const T2 = [...Array.from({length:(52-49+1)},(_,i)=>49+i), ...Array.from({length:11},(_,i)=>1+i)]; // 49..52 + 1..11
-const T3 = Array.from({length:(27-12+1)}, (_,i)=>12+i);                       // 12..27
-const BONUS = Array.from({length:(35-28+1)}, (_,i)=>28+i);                    // 28..35
+const T1 = Array.from({length:(48-36+1)}, (_,i)=>36+i);
+const T2 = [...Array.from({length:(52-49+1)},(_,i)=>49+i), ...Array.from({length:11},(_,i)=>1+i)];
+const T3 = Array.from({length:(27-12+1)}, (_,i)=>12+i);
+const BONUS = Array.from({length:(35-28+1)}, (_,i)=>28+i);
 
 function uniqueOrdered(arr){
   const seen = new Set(); const out=[];
   for(const x of arr){ if(seen.has(x)) continue; seen.add(x); out.push(x); }
   return out;
 }
-
 const PERIODS = {
   t1: T1, t2: T2, t3: T3, bonus: BONUS,
   school: uniqueOrdered([...T1, ...T2, ...T3, ...BONUS])
 };
-
-// Liste semaines affichées (S36→S52 puis S1→S35)
+function weeksForPeriod(period){
+  return (PERIODS[period] || PERIODS.school).slice();
+}
 const SCHOOL_ORDER = uniqueOrdered([
   ...Array.from({length:(52-36+1)},(_,i)=>36+i),
   ...Array.from({length:35},(_,i)=>1+i)
 ]);
 
-function weeksForPeriod(period){
-  return (PERIODS[period] || PERIODS.school).slice();
-}
-
 /* =======================
    STOCKAGE
 ======================= */
-const LS_OVR = "ps_overrides_final_v2";
-const LS_OBJ = "ps_objectifs_final_v2";
-const LS_TEMPLATE = "ps_prefill_template_v2";
+const LS_OVR = "ps_overrides_clean_v1";
+const LS_OBJ = "ps_objectifs_clean_v1";
+const LS_TEMPLATE = "ps_prefill_template_v1";
 
 let overrides = {};
 let objectifs = {
-  global: { school:0, t1:0, t2:0, t3:0, bonus:0 }, // 0 => auto
+  global: { school:0, t1:0, t2:0, t3:0, bonus:0 },
   perActivity: { school:{}, t1:{}, t2:{}, t3:{}, bonus:{} },
   thresholds: { warnPct: 90, alertPct: 110 }
 };
@@ -471,7 +448,6 @@ function toast(msg){
   t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"), 1600);
 }
-
 function k(week, slot, day){ return `S${week}|${slot}|${day}`; }
 function getCell(week, slot, day){
   const key = k(week,slot,day);
@@ -482,7 +458,6 @@ function setCell(week, slot, day, val){
   overrides[k(week,slot,day)] = val;
   localStorage.setItem(LS_OVR, JSON.stringify(overrides));
 }
-
 function fixText(s){
   return (s || "")
     .replaceAll("PrĂ©paration","Préparation")
@@ -491,51 +466,28 @@ function fixText(s){
     .replaceAll("RÃ©union","Réunion");
 }
 
-let _statsTimer=null;
-function scheduleStatsRefresh(){
-  clearTimeout(_statsTimer);
-  _statsTimer = setTimeout(()=>{ try{ renderStats(); }catch(e){} }, 200);
-}
-
 /* =======================
-   NAVIGATION ONGLETS (FIX)
+   NAV (onglets)
 ======================= */
 function showView(viewId){
-  // désactiver tout
-  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-  document.querySelectorAll(".views > section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
 
-  // activer l’onglet
   const tab = document.querySelector(`.tab[data-view="${viewId}"]`);
-  if (tab) tab.classList.add("active");
+  const sec = document.getElementById("view-" + viewId);
+  if(tab) tab.classList.add("active");
+  if(sec) sec.classList.add("active");
 
-  // activer la section
-  const section = document.getElementById("view-" + viewId);
-  if (section) section.classList.add("active");
-
-  // hooks spécifiques
-  if (viewId === "stats" && typeof renderStats === "function") renderStats();
-  if (viewId === "advstats_act" && typeof renderAdvStats === "function") renderAdvStats();
-  if (viewId === "prefill") {
-    if (typeof renderPrefillGrid === "function") renderPrefillGrid();
-    if (typeof refreshPrefillWeekList === "function") refreshPrefillWeekList();
-  }
+  if(viewId==="stats") renderStats();
+  if(viewId==="prefill"){ refreshPrefillWeekList(); renderPrefillGrid(); }
+  if(viewId==="advstats_act") renderAdvStats();
 }
-
-// branchement clics
-document.querySelectorAll(".tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    showView(tab.dataset.view);
-  });
-});
-
-// vue par défaut au chargement
-document.addEventListener("DOMContentLoaded", () => {
-  showView("planning");
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click", ()=>showView(t.dataset.view));
 });
 
 /* =======================
-   SEMAINE (grille)
+   SEMAINE
 ======================= */
 let currentWeek = SCHOOL_ORDER[0];
 const weekSelect = document.getElementById("weekSelect");
@@ -548,7 +500,7 @@ function buildWeekSelect(){
     opt.textContent="Semaine "+w;
     weekSelect.appendChild(opt);
   });
-  weekSelect.value = currentWeek;
+  weekSelect.value=currentWeek;
 }
 
 weekSelect.addEventListener("change", ()=>{
@@ -649,11 +601,12 @@ document.getElementById("mSave").addEventListener("click", ()=>{
   closeModal();
   renderWeek();
   renderStats();
+  renderAdvStats();
   toast("Enregistré");
 });
 
 /* =======================
-   IMPORT / EXPORT JSON
+   JSON Import/Export
 ======================= */
 document.getElementById("btnExportJson").addEventListener("click", ()=>{
   const payload = { overrides, objectifs };
@@ -685,7 +638,7 @@ document.getElementById("importJson").addEventListener("change", async (e)=>{
 });
 
 /* =======================
-   IMPORT CSV (hebdo)
+   CSV import (hebdo)
 ======================= */
 function detectDelimiter(line){
   const semis=(line.match(/;/g)||[]).length;
@@ -789,8 +742,13 @@ alertPctInput.addEventListener("change", ()=>{
   alertPctInput.value = objectifs.thresholds.alertPct;
   saveObjectifs(); renderStats();
 });
-
 periodSelect.addEventListener("change", renderStats);
+
+let _statsTimer=null;
+function scheduleStatsRefresh(){
+  clearTimeout(_statsTimer);
+  _statsTimer = setTimeout(()=>{ try{ renderStats(); }catch(e){} }, 200);
+}
 
 function countActivitiesForWeeks(weeks){
   const counts={};
@@ -806,34 +764,12 @@ function countActivitiesForWeeks(weeks){
   return counts;
 }
 
-function renderSpark(points){
-  const container = document.getElementById("spark");
-  if(points.length===0){ container.innerHTML=""; return; }
-  const W=520,H=140,pad={l:28,r:10,t:10,b:24},iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
-  const maxV=Math.max(1,...points.map(p=>p.n));
-  const stepX=iw/Math.max(1,points.length-1);
-  const coords=points.map((p,i)=>[pad.l+i*stepX, pad.t+ih-(p.n/maxV)*ih]);
-  const line=coords.map(c=>c.join(",")).join(" ");
-  const area=`M ${pad.l},${pad.t+ih} L ${coords.map(c=>c.join(",")).join(" L ")} L ${pad.l+(points.length-1)*stepX},${pad.t+ih} Z`;
-  container.innerHTML = `
-    <svg viewBox="0 0 ${W} ${H}">
-      <path d="${area}" fill="rgba(200,245,58,.08)"></path>
-      <polyline points="${line}" fill="none" stroke="#c8f53a" stroke-width="2"></polyline>
-      ${coords.map(c=>`<circle cx="${c[0]}" cy="${c[1]}" r="3" fill="#c8f53a"></circle>`).join("")}
-    </svg>
-  `;
-}
-
 function renderStats(){
   const period = periodSelect.value;
-
   const warnPct = objectifs.thresholds.warnPct ?? 90;
   const alertPct = objectifs.thresholds.alertPct ?? 110;
 
-  // base weeks (pas filtrées par diviseur)
   const baseWeeks = weeksForPeriod(period);
-
-  // Année scolaire : inclut bonus dans le numérateur (si on est sur school)
   let weeksForNumerator = baseWeeks.slice();
   if(period==="school"){
     weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...weeksForPeriod("bonus")]);
@@ -848,7 +784,6 @@ function renderStats(){
   document.getElementById("totalReal").textContent = String(totalReal);
   document.getElementById("avgPerWeek").textContent = avg.toFixed(1);
 
-  // objectifs par activité
   const perAct = (objectifs.perActivity[period] ||= {});
   const storedGlobal = Number(objectifs.global?.[period] || 0);
   const sumPerAct = Object.values(perAct).map(Number).filter(v=>!isNaN(v)&&v>0).reduce((a,b)=>a+b,0);
@@ -862,8 +797,7 @@ function renderStats(){
     const v = Number(globalExpectedInput.value);
     if(!globalExpectedInput.value || isNaN(v) || v<=0) objectifs.global[period]=0;
     else objectifs.global[period]=Math.round(v);
-    saveObjectifs();
-    scheduleStatsRefresh();
+    saveObjectifs(); scheduleStatsRefresh();
   };
 
   function globalStatusHTML(real, exp){
@@ -895,7 +829,6 @@ function renderStats(){
     globalBarText.textContent = diff>0 ? `${pct}% (+${diff} h)` : diff<0 ? `${pct}% (reste ${Math.abs(diff)} h)` : `100% (atteint)`;
   }
 
-  // bars per activity (real vs expected)
   const setActs = new Set(Object.keys(counts).filter(a=>counts[a]>0));
   Object.keys(perAct).forEach(a=>setActs.add(a));
   const list = Array.from(setActs).filter(a=>a && a!=="Occupation");
@@ -907,83 +840,74 @@ function renderStats(){
 
   if(list.length===0){
     bars.innerHTML=`<div class="hint">Aucune donnée : importe des semaines ou renseigne des attendus.</div>`;
-  } else {
-    list.forEach(act=>{
-      const real=counts[act]||0;
-      const exp=perAct[act]?Number(perAct[act]):0;
-      const pct=exp>0?Math.round((real/exp)*100):null;
-      const diff=exp>0?(real-exp):null;
-
-      let widthPct = exp>0 ? Math.min(100,(real/exp)*100) : (real/maxReal)*100;
-
-      let cls="", badge="";
-      if(exp>0 && pct!==null){
-        if(pct>=alertPct){ cls="alert"; badge=`<span class="badge b-alert">ALERTE</span>`; }
-        else if(pct>=100){ cls="ok"; badge=`<span class="badge b-ok">OK</span>`; }
-        else if(pct>=warnPct){ cls="warn"; badge=`<span class="badge b-warn">PROCHE</span>`; }
-      }
-
-      const row=document.createElement("div");
-      row.className=`barrow ${cls}`;
-
-      const label=document.createElement("div");
-      label.className="barname";
-      label.title=act;
-      label.innerHTML=`${act}${badge}`;
-
-      const track=document.createElement("div");
-      track.className="track";
-      const fill=document.createElement("div");
-      fill.className="fill";
-      fill.style.width=widthPct.toFixed(1)+"%";
-      fill.style.background=COLORS[act]||"#444";
-      track.appendChild(fill);
-
-      const value=document.createElement("div");
-      value.className="barval";
-      if(exp>0){
-        if(diff>0) value.innerHTML=`<span style="color:var(--danger);font-weight:900">${real} / ${exp} (${pct}%) – +${diff} h</span>`;
-        else if(diff<0) value.innerHTML=`<span style="color:var(--dim)">${real} / ${exp} (${pct}%) – reste ${Math.abs(diff)} h</span>`;
-        else value.innerHTML=`<span style="color:var(--ok);font-weight:900">${real} / ${exp} (100%) – atteint</span>`;
-      } else value.textContent=`${real}`;
-
-      const expBox=document.createElement("div");
-      expBox.className="expbox";
-      const lab=document.createElement("label");
-      lab.textContent="Attendu";
-      const inp=document.createElement("input");
-      inp.type="number"; inp.min="0"; inp.step="1"; inp.placeholder="—";
-      inp.value=exp>0?String(exp):"";
-
-      const applyExpected=()=>{
-        const v=Number(inp.value);
-        if(!inp.value||isNaN(v)||v<=0) delete objectifs.perActivity[period][act];
-        else objectifs.perActivity[period][act]=Math.round(v);
-        saveObjectifs();
-      };
-      inp.addEventListener("input", ()=>{ applyExpected(); scheduleStatsRefresh(); });
-      inp.addEventListener("blur", ()=>{ applyExpected(); renderStats(); });
-      inp.addEventListener("change", ()=>{ applyExpected(); renderStats(); });
-
-      expBox.appendChild(lab); expBox.appendChild(inp);
-
-      row.appendChild(label); row.appendChild(track); row.appendChild(value); row.appendChild(expBox);
-      bars.appendChild(row);
-    });
+    return;
   }
 
-  // spark on baseWeeks (période)
-  const pts = baseWeeks.map(w=>{
-    let n=0;
-    for(const slot of SLOTS) for(const day of DAYS) if(getCell(w,slot,day)!=="Occupation") n++;
-    return {w,n};
+  list.forEach(act=>{
+    const real=counts[act]||0;
+    const exp=perAct[act]?Number(perAct[act]):0;
+    const pct=exp>0?Math.round((real/exp)*100):null;
+    const diff=exp>0?(real-exp):null;
+
+    let widthPct = exp>0 ? Math.min(100,(real/exp)*100) : (real/maxReal)*100;
+
+    let cls="", badge="";
+    if(exp>0 && pct!==null){
+      if(pct>=alertPct){ cls="alert"; badge=`<span class="badge b-alert">ALERTE</span>`; }
+      else if(pct>=100){ cls="ok"; badge=`<span class="badge b-ok">OK</span>`; }
+      else if(pct>=warnPct){ cls="warn"; badge=`<span class="badge b-warn">PROCHE</span>`; }
+    }
+
+    const row=document.createElement("div");
+    row.className=`barrow ${cls}`;
+
+    const label=document.createElement("div");
+    label.className="barname";
+    label.title=act;
+    label.innerHTML=`${act}${badge}`;
+
+    const track=document.createElement("div");
+    track.className="track";
+    const fill=document.createElement("div");
+    fill.className="fill";
+    fill.style.width=widthPct.toFixed(1)+"%";
+    fill.style.background=COLORS[act]||"#444";
+    track.appendChild(fill);
+
+    const value=document.createElement("div");
+    value.className="barval";
+    if(exp>0){
+      if(diff>0) value.innerHTML=`<span style="color:var(--danger);font-weight:900">${real} / ${exp} (${pct}%) – +${diff} h</span>`;
+      else if(diff<0) value.innerHTML=`<span style="color:var(--dim)">${real} / ${exp} (${pct}%) – reste ${Math.abs(diff)} h</span>`;
+      else value.innerHTML=`<span style="color:var(--ok);font-weight:900">${real} / ${exp} (100%) – atteint</span>`;
+    } else value.textContent=`${real}`;
+
+    const expBox=document.createElement("div");
+    expBox.className="expbox";
+    const lab=document.createElement("label");
+    lab.textContent="Attendu";
+    const inp=document.createElement("input");
+    inp.type="number"; inp.min="0"; inp.step="1"; inp.placeholder="—";
+    inp.value=exp>0?String(exp):"";
+
+    const applyExpected=()=>{
+      const v=Number(inp.value);
+      if(!inp.value||isNaN(v)||v<=0) delete objectifs.perActivity[period][act];
+      else objectifs.perActivity[period][act]=Math.round(v);
+      saveObjectifs();
+    };
+    inp.addEventListener("input", ()=>{ applyExpected(); scheduleStatsRefresh(); });
+    inp.addEventListener("blur", ()=>{ applyExpected(); renderStats(); });
+    inp.addEventListener("change", ()=>{ applyExpected(); renderStats(); });
+
+    expBox.appendChild(lab); expBox.appendChild(inp);
+
+    row.appendChild(label); row.appendChild(track); row.appendChild(value); row.appendChild(expBox);
+    bars.appendChild(row);
   });
-  renderSpark(pts);
 }
 
-/* =======================
-   STATS CSV export (principal)
-======================= */
+/* CSV export (principal) */
 document.getElementById("btnExportCsv").addEventListener("click", ()=>{
   const period = periodSelect.value;
   const baseWeeks = weeksForPeriod(period);
@@ -1063,14 +987,13 @@ fillPrefillSourceWeeks();
 function refreshPrefillWeekList(){
   pfWeekList.innerHTML="";
   SCHOOL_ORDER.forEach(w=>{
-    const id="pfw_"+w;
     const row=document.createElement("label");
     row.className="hint";
     row.style.display="flex";
     row.style.gap="10px";
     row.style.alignItems="center";
     row.style.margin="6px 0";
-    row.innerHTML = `<input type="checkbox" id="${id}"><span style="color:var(--text);font-weight:800">S${w}</span>`;
+    row.innerHTML = `<input type="checkbox"><span style="color:var(--text);font-weight:800">S${w}</span>`;
     const cb=row.querySelector("input");
     cb.checked = pfSelectedWeeks.has(w);
     cb.addEventListener("change", ()=>{
@@ -1082,29 +1005,17 @@ function refreshPrefillWeekList(){
   pfCount.textContent = pfSelectedWeeks.size + (pfSelectedWeeks.size<=1 ? " semaine sélectionnée":" semaines sélectionnées");
 }
 
-document.getElementById("pfAll").addEventListener("click", ()=>{
-  pfSelectedWeeks.clear(); SCHOOL_ORDER.forEach(w=>pfSelectedWeeks.add(w));
+function setPrefillSelection(list){
+  pfSelectedWeeks.clear();
+  list.forEach(w=>pfSelectedWeeks.add(w));
   refreshPrefillWeekList();
-});
-document.getElementById("pfNone").addEventListener("click", ()=>{
-  pfSelectedWeeks.clear(); refreshPrefillWeekList();
-});
-document.getElementById("pfT1").addEventListener("click", ()=>{
-  pfSelectedWeeks.clear(); weeksForPeriod("t1").forEach(w=>pfSelectedWeeks.add(w));
-  refreshPrefillWeekList();
-});
-document.getElementById("pfT2").addEventListener("click", ()=>{
-  pfSelectedWeeks.clear(); weeksForPeriod("t2").forEach(w=>pfSelectedWeeks.add(w));
-  refreshPrefillWeekList();
-});
-document.getElementById("pfT3").addEventListener("click", ()=>{
-  pfSelectedWeeks.clear(); weeksForPeriod("t3").forEach(w=>pfSelectedWeeks.add(w));
-  refreshPrefillWeekList();
-});
-document.getElementById("pfBonus").addEventListener("click", ()=>{
-  pfSelectedWeeks.clear(); weeksForPeriod("bonus").forEach(w=>pfSelectedWeeks.add(w));
-  refreshPrefillWeekList();
-});
+}
+document.getElementById("pfAll").addEventListener("click", ()=>setPrefillSelection(SCHOOL_ORDER));
+document.getElementById("pfNone").addEventListener("click", ()=>setPrefillSelection([]));
+document.getElementById("pfT1").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("t1")));
+document.getElementById("pfT2").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("t2")));
+document.getElementById("pfT3").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("t3")));
+document.getElementById("pfBonus").addEventListener("click", ()=>setPrefillSelection(weeksForPeriod("bonus")));
 
 function renderPrefillGrid(){
   pfGrid.innerHTML="";
@@ -1136,7 +1047,6 @@ function renderPrefillGrid(){
   pfGrid.appendChild(tbody);
 }
 
-// prefill picker modal
 const pfOverlay=document.getElementById("pfOverlay");
 const pfChoices=document.getElementById("pfChoices");
 let pfCtx=null;
@@ -1164,7 +1074,6 @@ function closePrefillPicker(){ pfOverlay.classList.remove("open"); pfCtx=null; }
 
 document.getElementById("pfCancel").addEventListener("click", closePrefillPicker);
 pfOverlay.addEventListener("click",(e)=>{ if(e.target===pfOverlay) closePrefillPicker(); });
-
 document.getElementById("pfOk").addEventListener("click", ()=>{
   const sel=pfChoices.querySelector(".choice.sel");
   if(!sel || !pfCtx) return;
@@ -1184,7 +1093,6 @@ document.getElementById("pfCopyFromWeek").addEventListener("click", ()=>{
   toast("Modèle copié depuis S"+w);
   renderPrefillGrid();
 });
-
 document.getElementById("pfClear").addEventListener("click", ()=>{
   TEMPLATE=emptyTemplate();
   saveTemplate(TEMPLATE);
@@ -1209,10 +1117,7 @@ document.getElementById("pfApply").addEventListener("click", ()=>{
       for(const day of DAYS){
         const val = (TEMPLATE[slot] && TEMPLATE[slot][day]) ? TEMPLATE[slot][day] : "Occupation";
         if(!includeOcc && val==="Occupation") continue;
-        if(onlyEmpty){
-          const cur=getCell(w,slot,day);
-          if(cur!=="Occupation") continue;
-        }
+        if(onlyEmpty && getCell(w,slot,day)!=="Occupation") continue;
         setCell(w,slot,day,val);
         writes++;
       }
@@ -1239,15 +1144,15 @@ const advSelected = new Set(advActs);
 function renderAdvChecks(){
   aaChecks.innerHTML="";
   advActs.forEach(act=>{
-    const id="aa_"+act.replace(/[^\w]+/g,"_");
     const row=document.createElement("label");
     row.className="aa-row";
     row.innerHTML = `
-      <input type="checkbox" id="${id}" ${advSelected.has(act)?"checked":""}>
+      <input type="checkbox" ${advSelected.has(act)?"checked":""}>
       <span class="aa-swatch" style="background:${COLORS[act]||"#777"}"></span>
       <span class="aa-name">${act}</span>
     `;
-    row.querySelector("input").addEventListener("change",(e)=>{
+    const cb = row.querySelector("input");
+    cb.addEventListener("change",(e)=>{
       if(e.target.checked) advSelected.add(act); else advSelected.delete(act);
       renderAdvStats();
     });
@@ -1283,3 +1188,86 @@ function computeAdv(period){
   }
   const filtered={};
   advActs.forEach(a=>{ if(advSelected.has(a)) filtered[a]=totals[a]; });
+  const totalSelected = Object.values(filtered).reduce((s,v)=>s+v,0);
+  return {wksCount:wks.length, totalsSel:filtered, totalSelected};
+}
+
+function renderAdvBars(totalsSel){
+  const entries = Object.entries(totalsSel).filter(([,v])=>v>0);
+  if(entries.length===0){ aaBars.innerHTML = `<div class="hint">Aucune heure.</div>`; return; }
+  entries.sort((a,b)=>b[1]-a[1]);
+  const maxV=Math.max(1,...entries.map(e=>e[1]));
+
+  const barH=26,W=760,H=40+entries.length*barH,padL=160,padR=20,padT=20;
+  let svg=`<text x="10" y="16" font-size="12" fill="#8b8b8b">Heures</text>`;
+  entries.forEach(([act,val], i)=>{
+    const y=padT+i*barH+10;
+    const w=((W-padL-padR)*(val/maxV));
+    svg+=`
+      <text x="10" y="${y+12}" font-size="12" fill="#eaeaea">${act}</text>
+      <rect x="${padL}" y="${y}" width="${w}" height="16" rx="4" fill="${COLORS[act]||"#777"}"></rect>
+      <text x="${padL+w+8}" y="${y+12}" font-size="12" fill="#8b8b8b">${val}</text>
+    `;
+  });
+  aaBars.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${svg}</svg>`;
+}
+
+function renderAdvPie(totalsSel, total){
+  const entries=Object.entries(totalsSel).filter(([,v])=>v>0);
+  if(entries.length===0){ aaPie.innerHTML = `<div class="hint">Aucune heure.</div>`; return; }
+
+  const W=420,H=320,cx=210,cy=140,r=110;
+  function polar(a){ return [cx + r*Math.cos(a), cy + r*Math.sin(a)]; }
+  function arcPath(a0,a1){
+    const [x0,y0]=polar(a0), [x1,y1]=polar(a1);
+    const large=(a1-a0)>Math.PI?1:0;
+    return `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`;
+  }
+
+  let a=-Math.PI/2, paths="";
+  let legend=`<div class="hint">Total sélection : <b style="color:var(--text)">${total}</b> h</div>`;
+  entries.sort((a,b)=>b[1]-a[1]).forEach(([act,val])=>{
+    const frac=val/total;
+    const a1=a+frac*2*Math.PI;
+    paths += `<path d="${arcPath(a,a1)}" fill="${COLORS[act]||"#777"}"></path>`;
+    legend += `
+      <div class="aa-row">
+        <span class="aa-swatch" style="background:${COLORS[act]||"#777"}"></span>
+        <span class="aa-name">${act}</span>
+        <span class="aa-val">${val} (${Math.round(frac*100)}%)</span>
+      </div>`;
+    a=a1;
+  });
+
+  aaPie.innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
+      ${paths}
+      <text x="${cx}" y="${H-16}" font-size="12" fill="#8b8b8b" text-anchor="middle">Répartition</text>
+    </svg>
+    ${legend}
+  `;
+}
+
+function renderAdvStats(){
+  const period=aaPeriod.value;
+  const {wksCount, totalsSel, totalSelected} = computeAdv(period);
+  aaWeeks.textContent = String(wksCount);
+  aaTotal.textContent = String(totalSelected);
+  aaAvg.textContent = (totalSelected / Math.max(1,wksCount)).toFixed(1);
+  renderAdvBars(totalsSel);
+  renderAdvPie(totalsSel, Math.max(1,totalSelected));
+}
+
+/* =======================
+   INIT
+======================= */
+buildWeekSelect();
+renderWeek();
+renderStats();
+renderAdvStats();
+refreshPrefillWeekList();
+renderPrefillGrid();
+showView("planning");
+</script>
+</body>
+</html>
