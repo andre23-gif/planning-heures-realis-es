@@ -10,6 +10,7 @@
     :root{
       --bg:#0f0f0f; --surface:#171717; --surface2:#222; --border:#2c2c2c;
       --text:#eaeaea; --dim:#8b8b8b; --accent:#c8f53a; --danger:#ff6b6b;
+      --warn:#ffcc66; --ok:#6ee7b7;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
     }
     *{box-sizing:border-box}
@@ -42,7 +43,7 @@
       background:var(--surface2);border:1px solid var(--border);color:var(--text);
       padding:10px 12px;border-radius:10px
     }
-    input[type="number"]{width:110px}
+    input[type="number"]{width:120px}
     .hint{color:var(--dim);font-size:12px;margin-top:10px}
     .views > section{display:none}
     .views > section.active{display:block}
@@ -55,9 +56,7 @@
       border-bottom:1px solid var(--border);padding:10px;color:var(--dim);font-size:12px
     }
     th:first-child{left:0;z-index:3;text-align:left}
-    td{
-      border-bottom:1px solid var(--border);border-right:1px solid var(--border)
-    }
+    td{border-bottom:1px solid var(--border);border-right:1px solid var(--border)}
     td:first-child{
       position:sticky;left:0;z-index:1;background:var(--surface2);
       padding:10px;color:var(--dim);font-family:var(--mono);font-size:12px
@@ -78,15 +77,26 @@
 
     /* Stats */
     .statsgrid{display:grid;grid-template-columns:1fr;gap:12px}
-    @media(min-width:900px){.statsgrid{grid-template-columns:1.25fr .75fr}}
+    @media(min-width:900px){.statsgrid{grid-template-columns:1.3fr .7fr}}
     .bars{display:flex;flex-direction:column;gap:10px;margin-top:10px}
-    .barrow{display:flex;gap:10px;align-items:center}
+    .barrow{
+      display:flex;gap:10px;align-items:center;
+      padding:8px;border-radius:12px;border:1px solid var(--border);
+      background:rgba(255,255,255,.02)
+    }
+    .barrow.warn{border-color:rgba(255,204,102,.45); box-shadow:0 0 0 2px rgba(255,204,102,.14) inset}
+    .barrow.ok{border-color:rgba(110,231,183,.45); box-shadow:0 0 0 2px rgba(110,231,183,.14) inset}
+    .barrow.alert{border-color:rgba(255,107,107,.55); box-shadow:0 0 0 2px rgba(255,107,107,.16) inset}
     .barname{width:160px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .track{flex:1;height:18px;background:var(--surface2);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
     .fill{height:100%}
-    .barval{width:100px;text-align:right;color:var(--dim);font-family:var(--mono);font-size:12px}
+    .barval{width:210px;text-align:right;color:var(--dim);font-family:var(--mono);font-size:12px;line-height:1.2}
     .expbox{display:flex;gap:8px;align-items:center}
     .expbox label{font-size:12px;color:var(--dim)}
+    .badge{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900}
+    .b-warn{background:rgba(255,204,102,.18);color:var(--warn);border:1px solid rgba(255,204,102,.35)}
+    .b-ok{background:rgba(110,231,183,.14);color:var(--ok);border:1px solid rgba(110,231,183,.35)}
+    .b-alert{background:rgba(255,107,107,.14);color:var(--danger);border:1px solid rgba(255,107,107,.35)}
     .mini svg{width:100%;height:auto;display:block}
 
     /* Modal */
@@ -164,6 +174,14 @@
         <div style="height:10px"></div>
 
         <div class="row">
+          <div class="pill">Période :</div>
+          <select id="periodSelect">
+            <option value="annual">Annuel</option>
+            <option value="t1">Trimestre 1 (S35→S52)</option>
+            <option value="t2">Trimestre 2 (S1→S13)</option>
+            <option value="t3">Trimestre 3 (S14→S27)</option>
+          </select>
+
           <div class="pill">Semaines travaillées : <b id="workedLabel" style="color:var(--text)">36</b></div>
           <input type="range" id="workedRange" min="1" max="45" value="36">
 
@@ -175,15 +193,34 @@
           <div class="pill">Moyenne : <b id="avgPerWeek" style="color:var(--text)">0</b> h / semaine</div>
         </div>
 
+        <div style="height:10px"></div>
+
+        <div class="row">
+          <div class="pill">Objectif global (période) :</div>
+          <input id="globalExpected" type="number" min="0" step="1" placeholder="—">
+          <div class="pill"><span id="globalStatus">—</span></div>
+
+          <div class="spacer"></div>
+
+          <div class="pill">Seuil proche :</div>
+          <input id="warnPct" type="number" min="50" max="99" step="1" style="width:90px">
+          <div class="pill">%</div>
+
+          <div class="pill">Seuil alerte :</div>
+          <input id="alertPct" type="number" min="100" max="300" step="1" style="width:90px">
+          <div class="pill">%</div>
+        </div>
+
         <div class="hint">
-          “Réalisé” = nombre de cases remplies (≠ Occupation). 1 case = 1 heure (réglable plus tard si besoin).
+          “Réalisé” = nombre de cases remplies (≠ Occupation). 1 case = 1 heure.
+          Les seuils donnent une alerte visuelle par activité et en global.
         </div>
       </div>
 
       <div class="statsgrid">
         <div class="card">
-          <div style="font-weight:900">Réalisé vs attendu (par activité)</div>
-          <div class="hint">Tu peux renseigner l’attendu (heures) ou laisser vide.</div>
+          <div style="font-weight:900">Réalisé vs attendu (par activité, par période)</div>
+          <div class="hint">Renseigne l’attendu (heures) pour la période choisie, ou laisse vide.</div>
           <div class="bars" id="bars"></div>
         </div>
 
@@ -259,19 +296,44 @@ const COLORS = {
 /* =======================
    STOCKAGE
    ======================= */
-const LS_OVR = "ps_overrides_v2";
+const LS_OVR = "ps_overrides_v3";
 const LS_VAC = "ps_vacances_v1";
-const LS_EXP = "ps_expected_v1";   // heures attendues par activité
+const LS_OBJ = "ps_objectifs_v1";   // objectifs (par période + global + seuils)
 
 let overrides = {};
 let vacances = new Set();
-let expected = {}; // { "Baroque": 90, ... }
+
+// Objectifs : structure robuste et rétro-compatible
+let objectifs = {
+  global: { annual: 0, t1: 0, t2: 0, t3: 0 },
+  perActivity: { annual: {}, t1: {}, t2: {}, t3: {} },
+  thresholds: { warnPct: 90, alertPct: 110 }
+};
 
 try { overrides = JSON.parse(localStorage.getItem(LS_OVR) || "{}"); } catch(e) {}
 try { vacances = new Set(JSON.parse(localStorage.getItem(LS_VAC) || "[]")); } catch(e) {}
-try { expected = JSON.parse(localStorage.getItem(LS_EXP) || "{}"); } catch(e) { expected = {}; }
+try {
+  const raw = JSON.parse(localStorage.getItem(LS_OBJ) || "null");
+  if(raw){
+    // rétro-compat : si c'est un simple mapping activité->attendu, on le met en annual
+    if(!raw.global && !raw.perActivity){
+      objectifs.perActivity.annual = raw;
+    } else {
+      objectifs = {
+        global: { annual: 0, t1: 0, t2: 0, t3: 0, ...(raw.global||{}) },
+        perActivity: {
+          annual: {}, t1: {}, t2: {}, t3: {},
+          ...(raw.perActivity||{})
+        },
+        thresholds: { warnPct: 90, alertPct: 110, ...(raw.thresholds||{}) }
+      };
+    }
+  }
+} catch(e) {}
 
-function saveExpected(){ localStorage.setItem(LS_EXP, JSON.stringify(expected)); }
+function saveObjectifs(){
+  localStorage.setItem(LS_OBJ, JSON.stringify(objectifs));
+}
 
 /* clé cellule */
 function k(week, slot, day){ return `S${week}|${slot}|${day}`; }
@@ -286,7 +348,7 @@ function setCell(week, slot, day, val){
 }
 
 /* =======================
-   ANNÉE SCOLAIRE
+   ANNÉE SCOLAIRE + TRIMESTRES
    ======================= */
 function schoolWeeks(){
   const w = [];
@@ -296,6 +358,17 @@ function schoolWeeks(){
 }
 const SCHOOL = schoolWeeks();
 let currentWeek = SCHOOL[0];
+
+// Définition trimestres (modifiable si tu veux affiner)
+const TRIMESTRES = {
+  annual: SCHOOL.slice(),
+  t1: Array.from({length: 52-35+1}, (_,i)=>35+i),      // 35..52
+  t2: Array.from({length: 13}, (_,i)=>1+i),           // 1..13
+  t3: Array.from({length: 14}, (_,i)=>14+i)           // 14..27
+};
+function weeksForPeriod(period){
+  return TRIMESTRES[period] ? TRIMESTRES[period].slice() : TRIMESTRES.annual.slice();
+}
 
 /* =======================
    UI : Onglets
@@ -471,16 +544,39 @@ document.getElementById("resetVac").addEventListener("click", ()=>{
 });
 
 /* =======================
-   Stats
+   Stats : période + objectifs + alertes
    ======================= */
 const workedRange = document.getElementById("workedRange");
 const workedLabel = document.getElementById("workedLabel");
-workedRange.addEventListener("input", renderStats);
+const periodSelect = document.getElementById("periodSelect");
+const globalExpectedInput = document.getElementById("globalExpected");
+const globalStatus = document.getElementById("globalStatus");
+const warnPctInput = document.getElementById("warnPct");
+const alertPctInput = document.getElementById("alertPct");
 
-function activeWeeks(){
+workedRange.addEventListener("input", renderStats);
+periodSelect.addEventListener("change", renderStats);
+
+warnPctInput.value = objectifs.thresholds.warnPct ?? 90;
+alertPctInput.value = objectifs.thresholds.alertPct ?? 110;
+
+warnPctInput.addEventListener("change", ()=>{
+  objectifs.thresholds.warnPct = Math.max(50, Math.min(99, Number(warnPctInput.value)||90));
+  warnPctInput.value = objectifs.thresholds.warnPct;
+  saveObjectifs(); renderStats();
+});
+alertPctInput.addEventListener("change", ()=>{
+  objectifs.thresholds.alertPct = Math.max(100, Math.min(300, Number(alertPctInput.value)||110));
+  alertPctInput.value = objectifs.thresholds.alertPct;
+  saveObjectifs(); renderStats();
+});
+
+function activeWeeks(period){
+  const base = weeksForPeriod(period);
   const max = parseInt(workedRange.value, 10);
+
   const arr = [];
-  for(const w of SCHOOL){
+  for(const w of base){
     if(vacances.has(w)) continue;
     arr.push(w);
     if(arr.length >= max) break;
@@ -503,14 +599,25 @@ function countActivities(weeks){
   return counts;
 }
 
+function formatGlobalStatus(real, exp, warnPct, alertPct){
+  if(!exp || exp <= 0) return "—";
+  const diff = real - exp;
+  const pct = Math.round((real / exp) * 100);
+
+  if(pct >= alertPct) return `<span style="color:var(--danger);font-weight:900">${pct}% – +${diff} h</span>`;
+  if(pct >= 100) return `<span style="color:var(--ok);font-weight:900">${pct}% – objectif atteint</span>`;
+  if(pct >= warnPct) return `<span style="color:var(--warn);font-weight:900">${pct}% – reste ${Math.abs(diff)} h</span>`;
+  return `<span style="color:var(--dim)">${pct}% – reste ${Math.abs(diff)} h</span>`;
+}
+
 function renderStats(){
+  const period = periodSelect.value;
   workedLabel.textContent = workedRange.value;
   document.getElementById("vacCount").textContent = vacances.size;
 
-  const weeks = activeWeeks();
+  const weeks = activeWeeks(period);
   const counts = countActivities(weeks);
 
-  // total et moyenne
   const totalReal = Object.values(counts).reduce((s,v)=>s+v,0);
   const wcount = Math.max(1, weeks.length);
   const avg = totalReal / wcount;
@@ -518,9 +625,23 @@ function renderStats(){
   document.getElementById("totalReal").textContent = String(totalReal);
   document.getElementById("avgPerWeek").textContent = avg.toFixed(1);
 
-  // union activités : celles réalisées + celles avec attendu défini
+  // objectif global de la période
+  const gExp = Number(objectifs.global?.[period] || 0);
+  globalExpectedInput.value = gExp > 0 ? String(gExp) : "";
+  globalExpectedInput.onchange = ()=>{
+    const v = Number(globalExpectedInput.value) || 0;
+    objectifs.global[period] = v > 0 ? Math.round(v) : 0;
+    saveObjectifs(); renderStats();
+  };
+
+  const warnPct = objectifs.thresholds.warnPct ?? 90;
+  const alertPct = objectifs.thresholds.alertPct ?? 110;
+  globalStatus.innerHTML = formatGlobalStatus(totalReal, gExp, warnPct, alertPct);
+
+  // activités à afficher : réalisées OU attendues (pour la période)
+  const perAct = objectifs.perActivity?.[period] || {};
   const setActs = new Set(Object.keys(counts).filter(a=>counts[a]>0));
-  Object.keys(expected || {}).forEach(a=>{ if(a && a !== "Occupation") setActs.add(a); });
+  Object.keys(perAct).forEach(a=>{ if(a && a!=="Occupation") setActs.add(a); });
 
   const list = Array.from(setActs);
   list.sort((a,b)=>(counts[b]||0)-(counts[a]||0) || a.localeCompare(b));
@@ -535,50 +656,58 @@ function renderStats(){
   } else {
     list.forEach(act=>{
       const real = counts[act] || 0;
-      const exp = (expected && expected[act] !== undefined && expected[act] !== null && expected[act] !== "") ? Number(expected[act]) : null;
+      const exp = perAct[act] ? Number(perAct[act]) : 0;
+      const pct = (exp > 0) ? Math.round((real/exp)*100) : null;
+      const diff = (exp > 0) ? (real - exp) : null;
 
-      // largeur : si attendu défini => % sur attendu, sinon => relatif au max réalisé
-      let pct;
-      if(exp && exp > 0) pct = Math.min(100, (real/exp)*100);
-      else pct = (real/maxReal)*100;
+      // largeur bar : si exp défini => % sur exp ; sinon relatif au max
+      let widthPct = exp > 0 ? Math.min(100, (real/exp)*100) : (real/maxReal)*100;
+
+      // classe alerte
+      let cls = "";
+      let badge = "";
+      if(exp > 0 && pct !== null){
+        if(pct >= alertPct){ cls="alert"; badge=`<span class="badge b-alert">ALERTE</span>`; }
+        else if(pct >= 100){ cls="ok"; badge=`<span class="badge b-ok">OK</span>`; }
+        else if(pct >= warnPct){ cls="warn"; badge=`<span class="badge b-warn">PROCHE</span>`; }
+      }
 
       const row = document.createElement("div");
-      row.className = "barrow";
+      row.className = `barrow ${cls}`;
 
       const label = document.createElement("div");
       label.className = "barname";
       label.title = act;
-      label.textContent = act;
+      label.innerHTML = `${act}${badge}`;
 
       const track = document.createElement("div");
       track.className = "track";
       const fill = document.createElement("div");
       fill.className = "fill";
-      fill.style.width = pct.toFixed(1) + "%";
+      fill.style.width = widthPct.toFixed(1) + "%";
       fill.style.background = COLORS[act] || "#444";
       track.appendChild(fill);
 
       const value = document.createElement("div");
       value.className = "barval";
-     
-if (exp && exp > 0) {
-  const diff = real - exp;
-  if (diff > 0) {
-    value.innerHTML = `<span style="color:#ff6b6b;font-weight:900">
-      ${real} / ${exp} (+${diff})
-    </span>`;
-  } else if (diff < 0) {
-    value.innerHTML = `<span style="color:#8b8b8b">
-      ${real} / ${exp} (reste ${Math.abs(diff)})
-    </span>`;
-  } else {
-    value.innerHTML = `<span style="color:#c8f53a;font-weight:900">
-      ${real} / ${exp} (objectif atteint)
-    </span>`;
-  }
-} else {
-  value.textContent = `${real}`;
-}
+
+      if(exp > 0){
+        if(diff > 0){
+          value.innerHTML = `<span style="color:var(--danger);font-weight:900">
+            ${real} / ${exp} (${pct}%) – +${diff} h
+          </span>`;
+        } else if(diff < 0){
+          value.innerHTML = `<span style="color:var(--dim)">
+            ${real} / ${exp} (${pct}%) – reste ${Math.abs(diff)} h
+          </span>`;
+        } else {
+          value.innerHTML = `<span style="color:var(--ok);font-weight:900">
+            ${real} / ${exp} (100%) – atteint
+          </span>`;
+        }
+      } else {
+        value.textContent = `${real}`;
+      }
 
       const expBox = document.createElement("div");
       expBox.className = "expbox";
@@ -589,18 +718,17 @@ if (exp && exp > 0) {
       inp.min = "0";
       inp.step = "1";
       inp.placeholder = "—";
-      inp.value = (exp && exp > 0) ? String(exp) : "";
+      inp.value = exp > 0 ? String(exp) : "";
       inp.addEventListener("change", ()=>{
         const v = Number(inp.value);
         if(!inp.value || isNaN(v) || v <= 0){
-          delete expected[act];
+          delete objectifs.perActivity[period][act];
         } else {
-          expected[act] = Math.round(v);
+          objectifs.perActivity[period][act] = Math.round(v);
         }
-        saveExpected();
+        saveObjectifs();
         renderStats();
       });
-
       expBox.appendChild(lab);
       expBox.appendChild(inp);
 
@@ -608,7 +736,6 @@ if (exp && exp > 0) {
       row.appendChild(track);
       row.appendChild(value);
       row.appendChild(expBox);
-
       bars.appendChild(row);
     });
   }
@@ -673,29 +800,36 @@ function renderSpark(points){
    Export / Import
    ======================= */
 document.getElementById("btnExportCsv").addEventListener("click", ()=>{
-  const weeks = activeWeeks();
+  const period = periodSelect.value;
+  const weeks = activeWeeks(period);
   const counts = countActivities(weeks);
-
   const totalReal = Object.values(counts).reduce((s,v)=>s+v,0);
-  const wcount = Math.max(1, weeks.length);
-  const avg = totalReal / wcount;
+  const avg = totalReal / Math.max(1, weeks.length);
+
+  const gExp = Number(objectifs.global?.[period] || 0);
+  const gDiff = gExp>0 ? totalReal - gExp : "";
 
   const rows = [
-    ["Indicateur","Valeur"],
-    ["Semaines travaillées (effectives)", String(weeks.length)],
-    ["Total heures réalisées", String(totalReal)],
-    ["Moyenne heures / semaine", avg.toFixed(1)],
+    ["Période", period],
+    ["Semaines effectives", String(weeks.length)],
+    ["Total réalisé", String(totalReal)],
+    ["Moyenne / semaine", avg.toFixed(1)],
+    ["Objectif global", gExp>0?String(gExp):""],
+    ["Écart global", gDiff!==""?String(gDiff):""],
     [],
-    ["Activité","Heures réalisées","Heures attendues","Reste à faire"]
+    ["Activité","Réalisé","Attendu","%","Écart"]
   ];
 
+  const perAct = objectifs.perActivity?.[period] || {};
   const acts = new Set(Object.keys(counts));
-  Object.keys(expected||{}).forEach(a=>acts.add(a));
+  Object.keys(perAct).forEach(a=>acts.add(a));
+
   Array.from(acts).filter(a=>a && a!=="Occupation").sort().forEach(a=>{
     const real = counts[a] || 0;
-    const exp = (expected && expected[a]) ? Number(expected[a]) : "";
-    const rest = (exp && exp>0) ? Math.max(0, exp-real) : "";
-    rows.push([a, String(real), exp!==""?String(exp):"", rest!==""?String(rest):""]);
+    const exp = perAct[a] ? Number(perAct[a]) : 0;
+    const pct = exp>0 ? Math.round((real/exp)*100) : "";
+    const diff = exp>0 ? (real-exp) : "";
+    rows.push([a, String(real), exp>0?String(exp):"", pct!==""?String(pct):"", diff!==""?String(diff):""]);
   });
 
   const csv = rows.map(r=>r.join(";")).join("\n");
@@ -707,10 +841,12 @@ document.getElementById("btnExportJson").addEventListener("click", ()=>{
     overrides,
     vacances: Array.from(vacances),
     workedWeeks: parseInt(workedRange.value,10),
-    expected
+    objectifs
   };
   download("planning_scolaire_donnees.json", JSON.stringify(payload,null,2), "application/json");
 });
+
+document.getElementById("btnExportJson").addEventListener("click", ()=>{});
 
 document.getElementById("importFile").addEventListener("change", async (e)=>{
   const file = e.target.files && e.target.files[0];
@@ -721,11 +857,15 @@ document.getElementById("importFile").addEventListener("change", async (e)=>{
     if(payload.overrides) overrides = payload.overrides;
     if(payload.vacances) vacances = new Set(payload.vacances);
     if(payload.workedWeeks) workedRange.value = String(payload.workedWeeks);
-    if(payload.expected) expected = payload.expected;
+    if(payload.objectifs) objectifs = payload.objectifs;
 
     localStorage.setItem(LS_OVR, JSON.stringify(overrides));
     localStorage.setItem(LS_VAC, JSON.stringify(Array.from(vacances)));
-    saveExpected();
+    saveObjectifs();
+
+    // ré-inject seuils dans UI
+    warnPctInput.value = objectifs.thresholds?.warnPct ?? 90;
+    alertPctInput.value = objectifs.thresholds?.alertPct ?? 110;
 
     renderWeek(); renderVac(); renderStats();
     toast("Import OK");
@@ -744,6 +884,29 @@ function download(filename, content, type){
   a.click();
   URL.revokeObjectURL(a.href);
 }
+
+/* =======================
+   Export/Import JSON (planning)
+   ======================= */
+document.getElementById("btnExportJson").addEventListener("click", ()=>{
+  const payload = {
+    overrides,
+    vacances: Array.from(vacances),
+    workedWeeks: parseInt(workedRange.value,10),
+    objectifs
+  };
+  download("planning_scolaire_donnees.json", JSON.stringify(payload,null,2), "application/json");
+});
+
+/* =======================
+   Vacances reset
+   ======================= */
+document.getElementById("resetVac").addEventListener("click", ()=>{
+  vacances = new Set();
+  localStorage.setItem(LS_VAC, "[]");
+  renderVac();
+  renderStats();
+});
 
 /* =======================
    INIT
