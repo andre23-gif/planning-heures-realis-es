@@ -28,6 +28,7 @@
       padding:8px 10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer
     }
     .tab.active{background:var(--accent);border-color:var(--accent);color:#0f0f0f}
+
     main{padding:14px;max-width:1200px;margin:0 auto}
     .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -39,16 +40,16 @@
       padding:10px 12px;border-radius:10px;cursor:pointer
     }
     .btn.secondary{background:var(--surface2);border:1px solid var(--border);color:var(--text)}
-    .btn.danger{background:transparent;border:1px solid #5a2a2a;color:var(--danger)}
     select, input[type="range"], input[type="number"]{
       background:var(--surface2);border:1px solid var(--border);color:var(--text);
       padding:10px 12px;border-radius:10px
     }
     input[type="number"]{width:92px}
+
     .views > section{display:none}
     .views > section.active{display:block}
 
-    /* Table planning */
+    /* Table semaine */
     .gridwrap{overflow:auto;border:1px solid var(--border);border-radius:14px}
     table{border-collapse:collapse;min-width:860px;width:100%}
     th{
@@ -67,15 +68,7 @@
       font-size:12px;padding:6px;text-align:center
     }
 
-    /* Vacances */
-    .weeks{display:flex;flex-wrap:wrap;gap:6px}
-    .week{
-      border:1px solid var(--border);background:var(--surface2);color:var(--text);
-      padding:7px 10px;border-radius:10px;font-size:12px;cursor:pointer
-    }
-    .week.vac{background:#2a1515;border-color:#6a2a2a;color:#ffb3b3;text-decoration:line-through}
-
-    /* Stats */
+    /* Stats bars */
     .statsgrid{display:grid;grid-template-columns:1fr;gap:12px}
     @media(min-width:900px){.statsgrid{grid-template-columns:1.3fr .7fr}}
     .bars{display:flex;flex-direction:column;gap:10px;margin-top:10px}
@@ -97,9 +90,7 @@
     .b-warn{background:rgba(255,204,102,.18);color:var(--warn);border:1px solid rgba(255,204,102,.35)}
     .b-ok{background:rgba(110,231,183,.14);color:var(--ok);border:1px solid rgba(110,231,183,.35)}
     .b-alert{background:rgba(255,107,107,.14);color:var(--danger);border:1px solid rgba(255,107,107,.35)}
-    .mini svg{width:100%;height:auto;display:block}
 
-    /* Global progress colors */
     .global-warn { background: var(--warn) !important; }
     .global-ok { background: var(--ok) !important; }
     .global-alert { background: var(--danger) !important; }
@@ -121,6 +112,12 @@
     .toast{position:fixed;right:14px;bottom:14px;background:var(--accent);color:#0f0f0f;font-weight:900;
       padding:10px 14px;border-radius:12px;opacity:0;transform:translateY(12px);transition:.25s;z-index:60}
     .toast.show{opacity:1;transform:translateY(0)}
+
+    /* Advanced stats */
+    #view-advstats_act .aa-row{display:flex;align-items:center;gap:10px;margin:6px 0;color:var(--text);font-size:13px}
+    #view-advstats_act .aa-swatch{width:12px;height:12px;border-radius:4px;flex:0 0 12px}
+    #view-advstats_act .aa-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #view-advstats_act .aa-val{color:var(--dim);font-family:var(--mono);font-size:12px}
   </style>
 </head>
 
@@ -130,14 +127,15 @@
   <div class="tabs">
     <button class="tab active" data-view="planning">Semaine</button>
     <button class="tab" data-view="stats">Statistiques</button>
-    <button class="tab" data-view="vacances">Vacances</button>
+    <button class="tab" data-view="prefill">Pré-remplissage</button>
+    <button class="tab" data-view="advstats_act">Statistiques avancées</button>
   </div>
 </header>
 
 <main>
   <div class="views">
 
-    <!-- PLANNING -->
+    <!-- ====================== SEMAINE ====================== -->
     <section id="view-planning" class="active">
       <div class="card">
         <div class="row">
@@ -148,10 +146,10 @@
 
           <div class="spacer"></div>
 
-          <button class="btn secondary" id="btnExportJson">Exporter mes données (JSON)</button>
+          <button class="btn secondary" id="btnExportJson">Exporter (JSON)</button>
           <label class="btn secondary" style="cursor:pointer">
-            Importer JSON
-            <input id="importFile" type="file" accept="application/json" style="display:none">
+            Importer (JSON)
+            <input id="importJson" type="file" accept="application/json" style="display:none">
           </label>
 
           <label class="btn secondary" style="cursor:pointer">
@@ -160,8 +158,6 @@
           </label>
         </div>
 
-        <!-- NOTE: on a volontairement retiré la "ligne de texte" parasite ici -->
-
         <div style="height:12px"></div>
         <div class="gridwrap">
           <table id="grid"></table>
@@ -169,7 +165,7 @@
       </div>
     </section>
 
-    <!-- STATS -->
+    <!-- ====================== STATISTIQUES (PRINCIPAL) ====================== -->
     <section id="view-stats">
       <div class="card" style="margin-bottom:12px">
         <div class="row">
@@ -183,7 +179,6 @@
           </select>
 
           <div class="spacer"></div>
-
           <button class="btn secondary" id="btnExportCsv">Exporter stats (CSV)</button>
         </div>
 
@@ -192,12 +187,11 @@
         <div class="row">
           <div class="pill">Semaines travaillées (diviseur) :</div>
           <input type="range" id="workedRange" min="1" max="60" value="36">
-          <input type="number" id="workedInput" min="1" max="60" step="1" value="36" title="Nombre de semaines travaillées">
+          <input type="number" id="workedInput" min="1" max="60" step="1" value="36">
           <div class="pill">Choisi : <b id="workedLabel" style="color:var(--text)">36</b></div>
 
           <div class="spacer"></div>
 
-          <div class="pill">Vacances exclues : <b id="vacCount" style="color:var(--text)">0</b></div>
           <div class="pill">Total réalisé : <b id="totalReal" style="color:var(--text)">0</b> h</div>
           <div class="pill">Moyenne : <b id="avgPerWeek" style="color:var(--text)">0</b> h / semaine</div>
         </div>
@@ -226,44 +220,168 @@
         </div>
 
         <div class="hint">
-          Le diviseur (curseur) ne filtre pas les semaines : il sert uniquement à calculer la moyenne.
-          En “Année scolaire”, le bonus été (S28→S35) est ajouté aux heures réalisées sans augmenter le diviseur.
+          Le diviseur ne filtre pas les semaines : il sert uniquement à calculer la moyenne. En Année scolaire, le bonus été est inclus dans le total sans augmenter le diviseur.
         </div>
       </div>
 
       <div class="statsgrid">
         <div class="card">
           <div style="font-weight:900">Réalisé vs attendu (par activité)</div>
-          <div class="hint">Tu peux renseigner l’attendu (heures) pour la période choisie, ou laisser vide.</div>
+          <div class="hint">Renseigne l’attendu pour la période choisie (ou laisse vide).</div>
           <div class="bars" id="bars"></div>
         </div>
 
         <div class="card mini">
           <div style="font-weight:900">Évolution (heures actives / semaine)</div>
-          <div class="hint">Sur la période sélectionnée (sans filtre du curseur).</div>
+          <div class="hint">Série sur la période sélectionnée.</div>
           <div id="spark"></div>
         </div>
       </div>
     </section>
 
-    <!-- VACANCES -->
-    <section id="view-vacances">
+    <!-- ====================== PRÉ-REMPLISSAGE ====================== -->
+    <section id="view-prefill">
       <div class="card">
         <div class="row">
-          <div style="font-weight:900">Vacances / semaines non travaillées</div>
+          <div class="pill">Modèle</div>
+          <button class="btn secondary" id="pfCopyFromWeek">Copier depuis…</button>
+          <select id="pfSourceWeek"></select>
+
           <div class="spacer"></div>
-          <button class="btn danger" id="resetVac">Réinitialiser</button>
+
+          <button class="btn secondary" id="pfClear">Vider</button>
+          <button class="btn" id="pfSave">Enregistrer</button>
         </div>
-        <div class="hint">Clique une semaine pour la barrer (elle sera exclue des stats).</div>
+
+        <div class="hint">
+          Crée une semaine modèle ici, puis applique-la à une ou plusieurs semaines. Ensuite tu ajustes (ex : semaine 37) dans l’onglet Semaine.
+        </div>
+
         <div style="height:12px"></div>
-        <div class="weeks" id="vacWeeks"></div>
+
+        <div class="row" style="align-items:flex-start">
+          <div style="min-width:280px;max-width:380px;flex:0 0 320px">
+            <div class="pill" style="display:inline-block;margin-bottom:8px">Semaines cibles</div>
+
+            <div class="row" style="margin-bottom:10px">
+              <button class="btn secondary" id="pfAll">Tout</button>
+              <button class="btn secondary" id="pfNone">Aucun</button>
+              <button class="btn secondary" id="pfT1">T1</button>
+              <button class="btn secondary" id="pfT2">T2</button>
+              <button class="btn secondary" id="pfT3">T3</button>
+              <button class="btn secondary" id="pfBonus">Bonus</button>
+            </div>
+
+            <div class="hint" id="pfCount">0 semaine sélectionnée</div>
+
+            <div style="height:10px"></div>
+
+            <div style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02);max-height:360px;overflow:auto" id="pfWeekList"></div>
+
+            <div style="height:12px"></div>
+
+            <div style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02)">
+              <div class="hint" style="margin:0 0 10px 0;color:var(--text);font-weight:800">Appliquer le modèle</div>
+
+              <label class="hint" style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">
+                <input type="checkbox" id="pfOnlyEmpty">
+                Appliquer seulement sur les cases vides (Occupation)
+              </label>
+
+              <label class="hint" style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">
+                <input type="checkbox" id="pfIncludeOccupation">
+                Inclure “Occupation” (écrase tout)
+              </label>
+
+              <button class="btn" id="pfApply">Appliquer</button>
+              <div class="hint" style="margin-top:8px">Conseil : laisse “Inclure Occupation” décoché pour n’appliquer que ce que tu as renseigné.</div>
+            </div>
+          </div>
+
+          <div style="flex:1;min-width:360px">
+            <div class="pill" style="display:inline-block;margin-bottom:8px">Semaine modèle</div>
+            <div class="gridwrap">
+              <table id="pfGrid"></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay" id="pfOverlay">
+        <div class="modal" role="dialog" aria-modal="true">
+          <h3 id="pfMTitle">Choisir une activité</h3>
+          <div class="sub" id="pfMSub"></div>
+          <div class="choices" id="pfChoices"></div>
+          <div class="actions">
+            <button class="btn secondary" id="pfCancel">Annuler</button>
+            <button class="btn" id="pfOk">OK</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================== STATISTIQUES AVANCÉES (ACTIVITÉS) ====================== -->
+    <section id="view-advstats_act">
+      <div class="card">
+        <div class="row">
+          <div class="pill">Temps pris en compte :</div>
+          <select id="aaPeriod">
+            <option value="school">Année scolaire</option>
+            <option value="t1">Trimestre 1</option>
+            <option value="t2">Trimestre 2</option>
+            <option value="t3">Trimestre 3</option>
+            <option value="bonus">Bonus été</option>
+          </select>
+
+          <div class="spacer"></div>
+
+          <div class="pill">Semaines période :</div>
+          <div class="pill"><b id="aaWeeks" style="color:var(--text)">0</b></div>
+
+          <div class="pill">Total (sélection) :</div>
+          <div class="pill"><b id="aaTotal" style="color:var(--text)">0</b> h</div>
+
+          <div class="pill">Moyenne :</div>
+          <div class="pill"><b id="aaAvg" style="color:var(--text)">0</b> h / semaine</div>
+        </div>
+
+        <div class="hint">Coche les activités à prendre en compte. Couleurs = celles de la grille.</div>
+
+        <div style="height:12px"></div>
+
+        <div class="row" style="align-items:flex-start">
+          <div style="min-width:280px;max-width:420px;flex:0 0 360px">
+            <div class="pill" style="display:inline-block;margin-bottom:10px">Activités</div>
+
+            <div class="row" style="margin-bottom:10px">
+              <button class="btn secondary" id="aaAll">Tout</button>
+              <button class="btn secondary" id="aaNone">Aucun</button>
+            </div>
+
+            <div id="aaChecks" style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02);max-height:480px;overflow:auto"></div>
+          </div>
+
+          <div style="flex:1;min-width:360px">
+            <div style="display:grid;grid-template-columns:1fr;gap:12px">
+              <div style="border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.02);padding:10px;overflow:auto">
+                <div style="font-weight:900;margin-bottom:6px">Barres</div>
+                <div id="aaBars"></div>
+              </div>
+
+              <div style="border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.02);padding:10px;overflow:auto">
+                <div style="font-weight:900;margin-bottom:6px">Camembert</div>
+                <div id="aaPie"></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
   </div>
 </main>
 
-<!-- MODAL -->
+<!-- Modal principal (Semaine) -->
 <div class="overlay" id="overlay">
   <div class="modal" role="dialog" aria-modal="true">
     <h3 id="mTitle">Modifier</h3>
@@ -279,10 +397,13 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* ========= CONFIG ========= */
+/* =======================
+   CONFIG
+======================= */
 const DAYS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
 const SLOTS = ["Préparation","M1","M2","M3","M4","Midi","S1","S2","S3","S4","Soir 1","Soir 2","Soir 3","Soir 4","Nuit 1","Nuit 2","Nuit 3","Nuit 4","Nuit 5"];
 const ACTIVITIES = ["Cours","CDC/suivi","Préparation","Instances","Parcours Avenir","Baroque","Gestion","Numérique","Coordination","Réunion","Amicale","Autres","Pépinières","Occupation"];
+
 const COLORS = {
   "Cours":"#c8f53a","CDC/suivi":"#3a7bd5","Préparation":"#f39c12","Instances":"#9b59b6",
   "Parcours Avenir":"#1abc9c","Baroque":"#e74c3c","Gestion":"#7f8c8d","Numérique":"#27ae60",
@@ -290,221 +411,337 @@ const COLORS = {
   "Occupation":"#222"
 };
 
-/* ========= STORAGE ========= */
-const LS_OVR = "ps_overrides_final_v1";
-const LS_VAC = "ps_vacances_final_v1";
-const LS_OBJ = "ps_objectifs_final_v1";
+/* =======================
+   PÉRIODES (tes règles)
+======================= */
+const T1 = Array.from({length:(48-36+1)}, (_,i)=>36+i);                       // 36..48
+const T2 = [...Array.from({length:(52-49+1)},(_,i)=>49+i), ...Array.from({length:11},(_,i)=>1+i)]; // 49..52 + 1..11
+const T3 = Array.from({length:(27-12+1)}, (_,i)=>12+i);                       // 12..27
+const BONUS = Array.from({length:(35-28+1)}, (_,i)=>28+i);                    // 28..35
 
-let overrides = {};
-let vacances = new Set();
-let objectifs = {
-  global: { school: 0, t1: 0, t2: 0, t3: 0, bonus: 0 }, // 0 => auto
-  perActivity: { school:{}, t1:{}, t2:{}, t3:{}, bonus:{} },
-  thresholds: { warnPct: 90, alertPct: 110 }
-};
-
-try { overrides = JSON.parse(localStorage.getItem(LS_OVR) || "{}"); } catch(e) { overrides = {}; }
-try { vacances = new Set(JSON.parse(localStorage.getItem(LS_VAC) || "[]")); } catch(e) { vacances = new Set(); }
-try {
-  const raw = JSON.parse(localStorage.getItem(LS_OBJ) || "null");
-  if(raw && raw.global && raw.perActivity && raw.thresholds) objectifs = raw;
-} catch(e) {}
-
-function saveObjectifs(){ localStorage.setItem(LS_OBJ, JSON.stringify(objectifs)); }
-
-/* ========= HELPERS ========= */
-function toast(msg){
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.classList.add("show");
-  setTimeout(()=>t.classList.remove("show"), 1600);
-}
-let _statsTimer=null;
-function scheduleStatsRefresh(){
-  clearTimeout(_statsTimer);
-  _statsTimer = setTimeout(()=>{ try{ renderStats(); }catch(e){} }, 200);
-}
-function k(week, slot, day){ return `S${week}|${slot}|${day}`; }
-function getCell(week, slot, day){
-  const key = k(week,slot,day);
-  if (overrides[key] !== undefined) return overrides[key];
-  return "Occupation";
-}
-function setCell(week, slot, day, val){
-  overrides[k(week,slot,day)] = val;
-  localStorage.setItem(LS_OVR, JSON.stringify(overrides));
-}
-function fixText(s){
-  // corrige PrĂ©paration (observé dans Semaine 28) 
-  return (s || "")
-    .replaceAll("PrĂ©paration", "Préparation")
-    .replaceAll("PrÃ©paration", "Préparation")
-    .replaceAll("RĂ©union", "Réunion")
-    .replaceAll("RÃ©union", "Réunion");
-}
-function normSpace(s){ return (s||"").trim().replace(/\s+/g," "); }
 function uniqueOrdered(arr){
   const seen = new Set(); const out=[];
   for(const x of arr){ if(seen.has(x)) continue; seen.add(x); out.push(x); }
   return out;
 }
 
-/* ========= WEEKS ========= */
-// Saisissable toute l'année scolaire + été : S36→S52 puis S1→S35
-function schoolOrder(){
-  const w=[];
-  for(let i=36;i<=52;i++) w.push(i);
-  for(let i=1;i<=35;i++) w.push(i);
-  return uniqueOrdered(w);
-}
-const SCHOOL_ORDER = schoolOrder();
-let currentWeek = SCHOOL_ORDER[0];
-
-// Trimestres demandés + bonus été
-const T1 = Array.from({length:(48-36+1)}, (_,i)=>36+i);                     // 36..48
-const T2 = [...Array.from({length:(52-49+1)},(_,i)=>49+i), ...Array.from({length:11},(_,i)=>1+i)]; // 49..52 + 1..11
-const T3 = Array.from({length:(27-12+1)}, (_,i)=>12+i);                     // 12..27
-const BONUS = Array.from({length:(35-28+1)}, (_,i)=>28+i);                  // 28..35
-
 const PERIODS = {
   t1: T1, t2: T2, t3: T3, bonus: BONUS,
   school: uniqueOrdered([...T1, ...T2, ...T3, ...BONUS])
 };
 
-/* ========= TABS ========= */
+// Liste semaines affichées (S36→S52 puis S1→S35)
+const SCHOOL_ORDER = uniqueOrdered([
+  ...Array.from({length:(52-36+1)},(_,i)=>36+i),
+  ...Array.from({length:35},(_,i)=>1+i)
+]);
+
+function weeksForPeriod(period){
+  return (PERIODS[period] || PERIODS.school).slice();
+}
+
+/* =======================
+   STOCKAGE
+======================= */
+const LS_OVR = "ps_overrides_final_v2";
+const LS_OBJ = "ps_objectifs_final_v2";
+const LS_TEMPLATE = "ps_prefill_template_v2";
+
+let overrides = {};
+let objectifs = {
+  global: { school:0, t1:0, t2:0, t3:0, bonus:0 }, // 0 => auto
+  perActivity: { school:{}, t1:{}, t2:{}, t3:{}, bonus:{} },
+  thresholds: { warnPct: 90, alertPct: 110 }
+};
+
+try { overrides = JSON.parse(localStorage.getItem(LS_OVR) || "{}"); } catch(e){ overrides = {}; }
+try {
+  const raw = JSON.parse(localStorage.getItem(LS_OBJ) || "null");
+  if(raw && raw.global && raw.perActivity && raw.thresholds) objectifs = raw;
+} catch(e){}
+
+function saveObjectifs(){ localStorage.setItem(LS_OBJ, JSON.stringify(objectifs)); }
+
+/* =======================
+   HELPERS
+======================= */
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1600);
+}
+
+function k(week, slot, day){ return `S${week}|${slot}|${day}`; }
+function getCell(week, slot, day){
+  const key = k(week,slot,day);
+  if(overrides[key] !== undefined) return overrides[key];
+  return "Occupation";
+}
+function setCell(week, slot, day, val){
+  overrides[k(week,slot,day)] = val;
+  localStorage.setItem(LS_OVR, JSON.stringify(overrides));
+}
+
+function fixText(s){
+  return (s || "")
+    .replaceAll("PrĂ©paration","Préparation")
+    .replaceAll("PrÃ©paration","Préparation")
+    .replaceAll("RĂ©union","Réunion")
+    .replaceAll("RÃ©union","Réunion");
+}
+
+let _statsTimer=null;
+function scheduleStatsRefresh(){
+  clearTimeout(_statsTimer);
+  _statsTimer = setTimeout(()=>{ try{ renderStats(); }catch(e){} }, 200);
+}
+
+/* =======================
+   NAV (onglets)
+======================= */
+function activateView(view){
+  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
+
+  const tab = document.querySelector(`.tab[data-view="${view}"]`);
+  const sec = document.getElementById(`view-${view}`);
+  if(tab) tab.classList.add("active");
+  if(sec) sec.classList.add("active");
+
+  if(view==="stats") renderStats();
+  if(view==="advstats_act") renderAdvStats();
+  if(view==="prefill"){ renderPrefillGrid(); refreshPrefillWeekList(); }
+}
 document.querySelectorAll(".tab").forEach(btn=>{
-  btn.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-    btn.classList.add("active");
-    document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
-    document.getElementById("view-"+btn.dataset.view).classList.add("active");
-    if(btn.dataset.view==="stats") renderStats();
-    if(btn.dataset.view==="vacances") renderVac();
-  });
+  btn.addEventListener("click", ()=>activateView(btn.dataset.view));
 });
 
-/* ========= WEEK SELECT ========= */
+/* =======================
+   SEMAINE (grille)
+======================= */
+let currentWeek = SCHOOL_ORDER[0];
 const weekSelect = document.getElementById("weekSelect");
+
 function buildWeekSelect(){
   weekSelect.innerHTML = "";
-  for(const w of SCHOOL_ORDER){
+  SCHOOL_ORDER.forEach(w=>{
     const opt=document.createElement("option");
-    opt.value=w; opt.textContent="Semaine "+w;
+    opt.value=w;
+    opt.textContent="Semaine "+w;
     weekSelect.appendChild(opt);
-  }
-  weekSelect.value=currentWeek;
+  });
+  weekSelect.value = currentWeek;
 }
-weekSelect.addEventListener("change", ()=>{ currentWeek=parseInt(weekSelect.value,10); renderWeek(); });
+
+weekSelect.addEventListener("change", ()=>{
+  currentWeek = parseInt(weekSelect.value,10);
+  renderWeek();
+});
 document.getElementById("prevWeek").addEventListener("click", ()=>{
-  const i=SCHOOL_ORDER.indexOf(currentWeek);
-  if(i>0){ currentWeek=SCHOOL_ORDER[i-1]; renderWeek(); }
+  const i = SCHOOL_ORDER.indexOf(currentWeek);
+  if(i>0){ currentWeek = SCHOOL_ORDER[i-1]; renderWeek(); }
 });
 document.getElementById("nextWeek").addEventListener("click", ()=>{
-  const i=SCHOOL_ORDER.indexOf(currentWeek);
-  if(i<SCHOOL_ORDER.length-1){ currentWeek=SCHOOL_ORDER[i+1]; renderWeek(); }
+  const i = SCHOOL_ORDER.indexOf(currentWeek);
+  if(i<SCHOOL_ORDER.length-1){ currentWeek = SCHOOL_ORDER[i+1]; renderWeek(); }
 });
 
-/* ========= MODAL ========= */
-const overlay=document.getElementById("overlay");
-const choices=document.getElementById("choices");
-let modalCtx=null;
-
-function openModal(week, slot, day){
-  modalCtx={week,slot,day};
-  document.getElementById("mTitle").textContent = slot+" — "+day;
-  document.getElementById("mSub").textContent = "Semaine "+week;
-
-  const cur=getCell(week,slot,day);
-  choices.innerHTML="";
-  for(const a of ACTIVITIES){
-    const b=document.createElement("button");
-    b.className="choice"+(a===cur?" sel":"");
-    b.style.background = COLORS[a] || "#444";
-    b.style.color = (a==="Occupation") ? "#888" : "#0f0f0f";
-    b.textContent=a;
-    b.addEventListener("click", ()=>{
-      choices.querySelectorAll(".choice").forEach(x=>x.classList.remove("sel"));
-      b.classList.add("sel");
-    });
-    choices.appendChild(b);
-  }
-  overlay.classList.add("open");
-}
-function closeModal(){ overlay.classList.remove("open"); modalCtx=null; }
-document.getElementById("mCancel").addEventListener("click", closeModal);
-overlay.addEventListener("click",(e)=>{ if(e.target===overlay) closeModal(); });
-document.getElementById("mSave").addEventListener("click", ()=>{
-  const sel=choices.querySelector(".choice.sel");
-  if(!sel||!modalCtx) return;
-  setCell(modalCtx.week, modalCtx.slot, modalCtx.day, sel.textContent);
-  closeModal(); renderWeek(); toast("Enregistré");
-});
-
-/* ========= RENDER WEEK ========= */
 function renderWeek(){
-  document.getElementById("weekLabel").textContent="Semaine "+currentWeek;
-  weekSelect.value=currentWeek;
+  document.getElementById("weekLabel").textContent = "Semaine " + currentWeek;
+  weekSelect.value = currentWeek;
 
-  const table=document.getElementById("grid");
-  table.innerHTML="";
+  const table = document.getElementById("grid");
+  table.innerHTML = "";
 
-  const thead=document.createElement("thead");
-  const trh=document.createElement("tr");
-  const th0=document.createElement("th"); th0.textContent="Créneau"; trh.appendChild(th0);
-  for(const d of DAYS){
-    const th=document.createElement("th"); th.textContent=d.slice(0,3).toUpperCase(); trh.appendChild(th);
-  }
-  thead.appendChild(trh); table.appendChild(thead);
+  const thead = document.createElement("thead");
+  const trh = document.createElement("tr");
+  const th0 = document.createElement("th");
+  th0.textContent = "Créneau";
+  trh.appendChild(th0);
+  DAYS.forEach(d=>{
+    const th=document.createElement("th");
+    th.textContent = d.slice(0,3).toUpperCase();
+    trh.appendChild(th);
+  });
+  thead.appendChild(trh);
+  table.appendChild(thead);
 
   const tbody=document.createElement("tbody");
-  for(const slot of SLOTS){
+  SLOTS.forEach(slot=>{
     const tr=document.createElement("tr");
     const td0=document.createElement("td"); td0.textContent=slot; tr.appendChild(td0);
 
-    for(const day of DAYS){
+    DAYS.forEach(day=>{
       const td=document.createElement("td");
-      const act=getCell(currentWeek,slot,day);
+      const act = getCell(currentWeek, slot, day);
 
       const b=document.createElement("button");
       b.className="cell";
       b.style.background = COLORS[act] || "#444";
       b.style.color = (act==="Occupation") ? "#777" : "#0f0f0f";
       b.textContent = (act==="Occupation") ? "" : act;
-      b.addEventListener("click", ()=>openModal(currentWeek,slot,day));
+      b.addEventListener("click", ()=>openModal(currentWeek, slot, day));
 
-      td.appendChild(b); tr.appendChild(td);
-    }
+      td.appendChild(b);
+      tr.appendChild(td);
+    });
+
     tbody.appendChild(tr);
-  }
+  });
   table.appendChild(tbody);
 }
 
-/* ========= VACANCES ========= */
-function renderVac(){
-  const wrap=document.getElementById("vacWeeks");
-  wrap.innerHTML="";
-  for(const w of SCHOOL_ORDER){
-    const chip=document.createElement("div");
-    chip.className="week"+(vacances.has(w)?" vac":"");
-    chip.textContent="S"+w;
-    chip.addEventListener("click", ()=>{
-      if(vacances.has(w)) vacances.delete(w); else vacances.add(w);
-      localStorage.setItem(LS_VAC, JSON.stringify(Array.from(vacances)));
-      renderVac(); renderStats();
+/* =======================
+   MODAL (choix activité)
+======================= */
+const overlay = document.getElementById("overlay");
+const choices = document.getElementById("choices");
+let modalCtx = null;
+
+function openModal(week, slot, day){
+  modalCtx = {week, slot, day};
+  document.getElementById("mTitle").textContent = slot + " — " + day;
+  document.getElementById("mSub").textContent = "Semaine " + week;
+
+  const cur = getCell(week,slot,day);
+  choices.innerHTML = "";
+  ACTIVITIES.forEach(a=>{
+    const btn=document.createElement("button");
+    btn.className="choice" + (a===cur ? " sel": "");
+    btn.style.background = COLORS[a] || "#444";
+    btn.style.color = (a==="Occupation") ? "#888" : "#0f0f0f";
+    btn.textContent = a;
+    btn.addEventListener("click", ()=>{
+      choices.querySelectorAll(".choice").forEach(x=>x.classList.remove("sel"));
+      btn.classList.add("sel");
     });
-    wrap.appendChild(chip);
-  }
+    choices.appendChild(btn);
+  });
+
+  overlay.classList.add("open");
 }
-document.getElementById("resetVac").addEventListener("click", ()=>{
-  vacances=new Set();
-  localStorage.setItem(LS_VAC,"[]");
-  renderVac(); renderStats();
+function closeModal(){ overlay.classList.remove("open"); modalCtx=null; }
+
+document.getElementById("mCancel").addEventListener("click", closeModal);
+overlay.addEventListener("click",(e)=>{ if(e.target===overlay) closeModal(); });
+document.getElementById("mSave").addEventListener("click", ()=>{
+  const sel = choices.querySelector(".choice.sel");
+  if(!sel || !modalCtx) return;
+  setCell(modalCtx.week, modalCtx.slot, modalCtx.day, sel.textContent);
+  closeModal();
+  renderWeek();
+  renderStats();
+  toast("Enregistré");
 });
 
-/* ========= STATS CONTROLS (diviseur only) ========= */
+/* =======================
+   IMPORT / EXPORT JSON
+======================= */
+document.getElementById("btnExportJson").addEventListener("click", ()=>{
+  const payload = { overrides, objectifs };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="planning_scolaire_donnees.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+document.getElementById("importJson").addEventListener("change", async (e)=>{
+  const file=e.target.files && e.target.files[0];
+  if(!file) return;
+  const text=await file.text();
+  try{
+    const payload=JSON.parse(text);
+    if(payload.overrides) overrides = payload.overrides;
+    if(payload.objectifs) objectifs = payload.objectifs;
+    localStorage.setItem(LS_OVR, JSON.stringify(overrides));
+    saveObjectifs();
+    toast("Import JSON OK");
+    renderWeek(); renderStats(); renderAdvStats();
+  }catch(err){
+    toast("Import JSON impossible");
+  }finally{
+    e.target.value="";
+  }
+});
+
+/* =======================
+   IMPORT CSV (hebdo)
+======================= */
+function detectDelimiter(line){
+  const semis=(line.match(/;/g)||[]).length;
+  const commas=(line.match(/,/g)||[]).length;
+  return semis>=commas?";":",";
+}
+function parseCSV(text){
+  const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
+  if(lines.length===0) return {header:[], rows:[]};
+  const delim=detectDelimiter(lines[0]);
+  const rows=[];
+  for(const rawLine of lines){
+    const out=[]; let cur=""; let inQ=false;
+    for(let i=0;i<rawLine.length;i++){
+      const ch=rawLine[i];
+      if(ch === '"'){
+        if(inQ && rawLine[i+1] === '"'){ cur+='"'; i++; }
+        else inQ=!inQ;
+      } else if(ch===delim && !inQ){
+        out.push(cur); cur="";
+      } else cur+=ch;
+    }
+    out.push(cur); rows.push(out.map(x=>x.trim()));
+  }
+  return {header: rows[0], rows: rows.slice(1)};
+}
+function weekFromFilename(name){
+  const m=(name||"").match(/semaine\s*(\d{1,2})/i);
+  return m ? parseInt(m[1],10) : null;
+}
+function importWeeklyCSV(text, filename){
+  const {header, rows}=parseCSV(text);
+  const week=weekFromFilename(filename);
+  if(!week){ toast("CSV : numéro de semaine introuvable"); return; }
+
+  const h=header.map(x=>fixText(x).trim().toLowerCase());
+  const looksWeekly = h.includes("lundi") && h.includes("mardi") && h.includes("mercredi") && h.includes("jeudi") && h.includes("vendredi");
+  if(!looksWeekly){ toast("CSV non reconnu"); return; }
+
+  let count=0;
+  for(const r of rows){
+    const slot=fixText(r[0]||"").trim();
+    if(!slot) continue;
+    for(let i=0;i<7;i++){
+      let v=fixText(r[i+1]||"").trim();
+      if(v===""||v.toLowerCase()==="nan") v="Occupation";
+      setCell(week, slot, DAYS[i], v);
+      count++;
+    }
+  }
+  toast(`Import CSV OK – S${week} (${count} cellules)`);
+}
+
+document.getElementById("importCSV").addEventListener("change", async (e)=>{
+  const files=e.target.files?Array.from(e.target.files):[];
+  if(!files.length) return;
+  for(const f of files){
+    const text=await f.text();
+    importWeeklyCSV(text, f.name);
+  }
+  renderWeek(); renderStats(); renderAdvStats();
+  e.target.value="";
+});
+
+/* =======================
+   STATISTIQUES (principal)
+======================= */
 const workedRange=document.getElementById("workedRange");
 const workedInput=document.getElementById("workedInput");
 const workedLabel=document.getElementById("workedLabel");
+const periodSelect=document.getElementById("periodSelect");
+const warnPctInput=document.getElementById("warnPct");
+const alertPctInput=document.getElementById("alertPct");
 
 function clampWeeks(v){
   const min=parseInt(workedRange.min,10), max=parseInt(workedRange.max,10);
@@ -519,45 +756,28 @@ function setWeeksWorked(v){
   renderStats();
 }
 workedRange.addEventListener("input", ()=>setWeeksWorked(workedRange.value));
-workedInput.addEventListener("input", ()=>{
-  if(workedInput.value==="") return;
-  setWeeksWorked(workedInput.value);
-});
-workedInput.addEventListener("blur", ()=>{
-  if(workedInput.value==="") setWeeksWorked(workedRange.value);
-});
-
-const periodSelect=document.getElementById("periodSelect");
-const globalExpectedInput=document.getElementById("globalExpected");
-const globalStatus=document.getElementById("globalStatus");
-const warnPctInput=document.getElementById("warnPct");
-const alertPctInput=document.getElementById("alertPct");
+workedInput.addEventListener("input", ()=>{ if(workedInput.value!=="") setWeeksWorked(workedInput.value); });
+workedInput.addEventListener("blur", ()=>{ if(workedInput.value==="") setWeeksWorked(workedRange.value); });
 
 warnPctInput.value = objectifs.thresholds.warnPct ?? 90;
 alertPctInput.value = objectifs.thresholds.alertPct ?? 110;
 
 warnPctInput.addEventListener("change", ()=>{
-  objectifs.thresholds.warnPct=Math.max(50,Math.min(99,Number(warnPctInput.value)||90));
-  warnPctInput.value=objectifs.thresholds.warnPct;
+  objectifs.thresholds.warnPct = Math.max(50, Math.min(99, Number(warnPctInput.value)||90));
+  warnPctInput.value = objectifs.thresholds.warnPct;
   saveObjectifs(); renderStats();
 });
 alertPctInput.addEventListener("change", ()=>{
-  objectifs.thresholds.alertPct=Math.max(100,Math.min(300,Number(alertPctInput.value)||110));
-  alertPctInput.value=objectifs.thresholds.alertPct;
+  objectifs.thresholds.alertPct = Math.max(100, Math.min(300, Number(alertPctInput.value)||110));
+  alertPctInput.value = objectifs.thresholds.alertPct;
   saveObjectifs(); renderStats();
 });
+
 periodSelect.addEventListener("change", renderStats);
 
-/* ========= STATS CORE ========= */
-// ✅ Le curseur NE FILTRE PLUS les semaines : on compte toutes les semaines de la période (hors vacances)
-function weeksForPeriod(period){
-  const base = (PERIODS[period] || PERIODS.school);
-  return base.filter(w => !vacances.has(w));
-}
 function countActivitiesForWeeks(weeks){
   const counts={};
-  for(const a of ACTIVITIES) if(a!=="Occupation") counts[a]=0;
-
+  ACTIVITIES.forEach(a=>{ if(a!=="Occupation") counts[a]=0; });
   for(const w of weeks){
     for(const slot of SLOTS){
       for(const day of DAYS){
@@ -568,8 +788,9 @@ function countActivitiesForWeeks(weeks){
   }
   return counts;
 }
+
 function renderSpark(points){
-  const container=document.getElementById("spark");
+  const container = document.getElementById("spark");
   if(points.length===0){ container.innerHTML=""; return; }
   const W=520,H=140,pad={l:28,r:10,t:10,b:24},iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
   const maxV=Math.max(1,...points.map(p=>p.n));
@@ -588,19 +809,17 @@ function renderSpark(points){
 
 function renderStats(){
   const period = periodSelect.value;
-  document.getElementById("vacCount").textContent = vacances.size;
 
   const warnPct = objectifs.thresholds.warnPct ?? 90;
   const alertPct = objectifs.thresholds.alertPct ?? 110;
 
-  // semaines du trimestre choisi (hors vacances)
+  // base weeks (pas filtrées par diviseur)
   const baseWeeks = weeksForPeriod(period);
 
-  // Année scolaire : ajoute bonus été AU NUMÉRATEUR (heures en plus) sans changer le diviseur
+  // Année scolaire : inclut bonus dans le numérateur (si on est sur school)
   let weeksForNumerator = baseWeeks.slice();
-  if(period === "school"){
-    const bonusWeeks = weeksForPeriod("bonus");
-    weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...bonusWeeks]);
+  if(period==="school"){
+    weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...weeksForPeriod("bonus")]);
   }
 
   const counts = countActivitiesForWeeks(weeksForNumerator);
@@ -613,13 +832,13 @@ function renderStats(){
   document.getElementById("avgPerWeek").textContent = avg.toFixed(1);
 
   // objectifs par activité
-  const perAct = objectifs.perActivity[period] ||= {};
-
-  // objectif global auto = somme des attendus par activité si champ global vide
+  const perAct = (objectifs.perActivity[period] ||= {});
   const storedGlobal = Number(objectifs.global?.[period] || 0);
   const sumPerAct = Object.values(perAct).map(Number).filter(v=>!isNaN(v)&&v>0).reduce((a,b)=>a+b,0);
   const effectiveGlobal = storedGlobal > 0 ? storedGlobal : sumPerAct;
 
+  const globalExpectedInput=document.getElementById("globalExpected");
+  const globalStatus=document.getElementById("globalStatus");
   globalExpectedInput.value = storedGlobal > 0 ? String(storedGlobal) : "";
   globalExpectedInput.placeholder = sumPerAct>0 ? `auto : ${sumPerAct}` : "—";
   globalExpectedInput.oninput = ()=>{
@@ -641,7 +860,6 @@ function renderStats(){
   }
   globalStatus.innerHTML = globalStatusHTML(totalReal, effectiveGlobal);
 
-  // barre globale
   const globalFill=document.getElementById("globalFill");
   const globalBarText=document.getElementById("globalBarText");
   globalFill.classList.remove("global-warn","global-ok","global-alert");
@@ -660,19 +878,20 @@ function renderStats(){
     globalBarText.textContent = diff>0 ? `${pct}% (+${diff} h)` : diff<0 ? `${pct}% (reste ${Math.abs(diff)} h)` : `100% (atteint)`;
   }
 
-  // barres par activité
+  // bars per activity (real vs expected)
   const setActs = new Set(Object.keys(counts).filter(a=>counts[a]>0));
   Object.keys(perAct).forEach(a=>setActs.add(a));
   const list = Array.from(setActs).filter(a=>a && a!=="Occupation");
   list.sort((a,b)=>(counts[b]||0)-(counts[a]||0) || a.localeCompare(b));
   const maxReal = Math.max(1, ...list.map(a=>counts[a]||0));
+
   const bars=document.getElementById("bars");
   bars.innerHTML="";
 
   if(list.length===0){
     bars.innerHTML=`<div class="hint">Aucune donnée : importe des semaines ou renseigne des attendus.</div>`;
   } else {
-    for(const act of list){
+    list.forEach(act=>{
       const real=counts[act]||0;
       const exp=perAct[act]?Number(perAct[act]):0;
       const pct=exp>0?Math.round((real/exp)*100):null;
@@ -733,9 +952,10 @@ function renderStats(){
 
       row.appendChild(label); row.appendChild(track); row.appendChild(value); row.appendChild(expBox);
       bars.appendChild(row);
-    }
+    });
   }
 
+  // spark on baseWeeks (période)
   const pts = baseWeeks.map(w=>{
     let n=0;
     for(const slot of SLOTS) for(const day of DAYS) if(getCell(w,slot,day)!=="Occupation") n++;
@@ -744,114 +964,19 @@ function renderStats(){
   renderSpark(pts);
 }
 
-/* ========= JSON EXPORT / IMPORT ========= */
-document.getElementById("btnExportJson").addEventListener("click", ()=>{
-  const payload = { overrides, vacances:Array.from(vacances), objectifs };
-  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="planning_scolaire_donnees.json";
-  a.click(); URL.revokeObjectURL(a.href);
-});
-document.getElementById("importFile").addEventListener("change", async (e)=>{
-  const file=e.target.files&&e.target.files[0];
-  if(!file) return;
-  const text=await file.text();
-  try{
-    const payload=JSON.parse(text);
-    if(payload.overrides) overrides=payload.overrides;
-    if(payload.vacances) vacances=new Set(payload.vacances);
-    if(payload.objectifs) objectifs=payload.objectifs;
-    localStorage.setItem(LS_OVR, JSON.stringify(overrides));
-    localStorage.setItem(LS_VAC, JSON.stringify(Array.from(vacances)));
-    saveObjectifs();
-    toast("Import JSON OK");
-    renderWeek(); renderVac(); renderStats();
-  }catch(err){
-    toast("Import JSON impossible");
-  }finally{
-    e.target.value="";
-  }
-});
-
-/* ========= CSV IMPORT (hebdo) ========= */
-// Format supporté : ;Lundi;Mardi;... puis lignes "M1;Occupation;..." (ex S35) 
-function detectDelimiter(line){
-  const semis=(line.match(/;/g)||[]).length;
-  const commas=(line.match(/,/g)||[]).length;
-  return semis>=commas?";":",";
-}
-function parseCSV(text){
-  const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
-  if(lines.length===0) return {header:[], rows:[]};
-  const delim=detectDelimiter(lines[0]);
-  const rows=[];
-  for(const rawLine of lines){
-    const out=[]; let cur=""; let inQ=false;
-    for(let i=0;i<rawLine.length;i++){
-      const ch=rawLine[i];
-      if(ch === '"'){
-        if(inQ && rawLine[i+1] === '"'){ cur+='"'; i++; }
-        else inQ=!inQ;
-      } else if(ch===delim && !inQ){
-        out.push(cur); cur="";
-      } else cur+=ch;
-    }
-    out.push(cur); rows.push(out.map(x=>x.trim()));
-  }
-  return {header: rows[0], rows: rows.slice(1)};
-}
-function weekFromFilename(name){
-  const m=(name||"").match(/semaine\s*(\d{1,2})/i);
-  return m ? parseInt(m[1],10) : null;
-}
-function importWeeklyCSV(text, filename){
-  const {header, rows}=parseCSV(text);
-  const week=weekFromFilename(filename);
-  if(!week){ toast("CSV : numéro de semaine introuvable"); return; }
-
-  const h=header.map(x=>normSpace(fixText(x)).toLowerCase());
-  const looksWeekly = h.includes("lundi") && h.includes("mardi") && h.includes("mercredi") && h.includes("jeudi") && h.includes("vendredi");
-  if(!looksWeekly){ toast("CSV non reconnu (pas un tableau hebdo)"); return; }
-
-  let count=0;
-  for(const r of rows){
-    const slot=normSpace(fixText(r[0]||""));
-    if(!slot) continue;
-    for(let i=0;i<7;i++){
-      let v=normSpace(fixText(r[i+1]||""));
-      if(v===""||v.toLowerCase()==="nan") v="Occupation";
-      setCell(week, slot, DAYS[i], v);
-      count++;
-    }
-  }
-  toast(`Import CSV OK – S${week} (${count} cellules)`);
-}
-
-document.getElementById("importCSV").addEventListener("change", async (e)=>{
-  const files=e.target.files?Array.from(e.target.files):[];
-  if(!files.length) return;
-  for(const f of files){
-    const text=await f.text();
-    importWeeklyCSV(text, f.name);
-  }
-  localStorage.setItem(LS_OVR, JSON.stringify(overrides));
-  renderWeek(); renderVac(); renderStats();
-  e.target.value="";
-});
-
-/* ========= STATS CSV EXPORT ========= */
+/* =======================
+   STATS CSV export (principal)
+======================= */
 document.getElementById("btnExportCsv").addEventListener("click", ()=>{
-  const period=periodSelect.value;
+  const period = periodSelect.value;
   const baseWeeks = weeksForPeriod(period);
   let weeksForNumerator = baseWeeks.slice();
-  if(period==="school"){
-    weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...weeksForPeriod("bonus")]);
-  }
-  const counts=countActivitiesForWeeks(weeksForNumerator);
-  const totalReal=Object.values(counts).reduce((s,v)=>s+v,0);
-  const divisor=clampWeeks(workedInput.value||workedRange.value);
-  const avg=totalReal/Math.max(1,divisor);
+  if(period==="school") weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...weeksForPeriod("bonus")]);
+
+  const counts = countActivitiesForWeeks(weeksForNumerator);
+  const totalReal = Object.values(counts).reduce((s,v)=>s+v,0);
+  const divisor = clampWeeks(workedInput.value||workedRange.value);
+  const avg = totalReal / Math.max(1,divisor);
 
   const perAct = objectifs.perActivity[period] || {};
   const acts = new Set(Object.keys(counts));
@@ -881,1197 +1006,263 @@ document.getElementById("btnExportCsv").addEventListener("click", ()=>{
   a.click(); URL.revokeObjectURL(a.href);
 });
 
-/* ========= INIT ========= */
-buildWeekSelect();
-renderWeek();
-renderVac();
-setWeeksWorked(workedRange.value);
-renderStats();
-
-  /* ===== BEGIN STATISTIQUES AVANCÉES (onglet + checklist + familles éditables + graphiques) ===== */
-(function(){
-  // --- Nettoyage : supprime anciens onglets/sections Familles si présents
-  const oldTabs = [
-    '.tabs [data-view="familles"]',
-    '.tabs [data-view="famillesplus"]',
-    '.tabs [data-view="famillesplusv2"]'
-  ];
-  oldTabs.forEach(sel => {
-    const t = document.querySelector(sel);
-    if(t) t.remove();
-  });
-  ["view-familles","view-famillesplus","view-famillesplusv2"].forEach(id=>{
-    const s = document.getElementById(id);
-    if(s) s.remove();
-  });
-
-  // --- Récupère les références même si ce sont des const globaux
-  const SLOTS_REF = (typeof SLOTS !== "undefined") ? SLOTS : null;
-  const DAYS_REF  = (typeof DAYS  !== "undefined") ? DAYS  : null;
-  const getCell_REF = (typeof getCell === "function") ? getCell : null;
-  const weeksForPeriod_REF = (typeof weeksForPeriod === "function") ? weeksForPeriod : null;
-  const ACTIVITIES_REF = (typeof ACTIVITIES !== "undefined") ? ACTIVITIES : null;
-
-  if(!SLOTS_REF || !DAYS_REF || !getCell_REF || !weeksForPeriod_REF || !ACTIVITIES_REF){
-    console.warn("Statistiques avancées : dépendances manquantes (SLOTS/DAYS/getCell/weeksForPeriod/ACTIVITIES).");
-    return;
+/* =======================
+   PRÉ-REMPLISSAGE
+======================= */
+function emptyTemplate(){
+  const t={};
+  for(const slot of SLOTS){
+    t[slot]={};
+    for(const day of DAYS) t[slot][day]="Occupation";
   }
+  return t;
+}
+function loadTemplate(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(LS_TEMPLATE)||"null");
+    if(raw && typeof raw==="object") return raw;
+  }catch(e){}
+  return emptyTemplate();
+}
+function saveTemplate(t){ localStorage.setItem(LS_TEMPLATE, JSON.stringify(t)); }
+let TEMPLATE = loadTemplate();
 
-  // --- Stockage local (définitions + inclusions)
-  const LS_ADV = "ps_stats_avancees_v1";
+const pfSourceWeek=document.getElementById("pfSourceWeek");
+const pfWeekList=document.getElementById("pfWeekList");
+const pfCount=document.getElementById("pfCount");
+const pfGrid=document.getElementById("pfGrid");
+const pfSelectedWeeks = new Set();
 
-  // --- Définitions par défaut (tu peux les modifier dans l'UI)
-  const DEFAULT_FAMILIES = {
-    "Gestion": ["Gestion", "Coordination", "Instances"],
-    "Pédagogie": ["Cours", "Préparation", "CDC/suivi", "Parcours Avenir"],
-    "Projets": ["Baroque", "Pépinières", "Numérique"],
-    "Réunions": ["Réunion"],
-    "Autres": ["Amicale", "Autres"]
+function fillPrefillSourceWeeks(){
+  pfSourceWeek.innerHTML="";
+  SCHOOL_ORDER.forEach(w=>{
+    const o=document.createElement("option");
+    o.value=w; o.textContent="Semaine "+w;
+    pfSourceWeek.appendChild(o);
+  });
+}
+fillPrefillSourceWeeks();
+
+function refreshPrefillWeekList(){
+  pfWeekList.innerHTML="";
+  SCHOOL_ORDER.forEach(w=>{
+    const id="pfw_"+w;
+    const row=document.createElement("label");
+    row.className="hint";
+    row.style.display="flex";
+    row.style.gap="10px";
+    row.style.alignItems="center";
+    row.style.margin="6px 0";
+    row.innerHTML = `<input type="checkbox" id="${id}"><span style="color:var(--text);font-weight:800">S${w}</span>`;
+    const cb=row.querySelector("input");
+    cb.checked = pfSelectedWeeks.has(w);
+    cb.addEventListener("change", ()=>{
+      if(cb.checked) pfSelectedWeeks.add(w); else pfSelectedWeeks.delete(w);
+      pfCount.textContent = pfSelectedWeeks.size + (pfSelectedWeeks.size<=1 ? " semaine sélectionnée":" semaines sélectionnées");
+    });
+    pfWeekList.appendChild(row);
+  });
+  pfCount.textContent = pfSelectedWeeks.size + (pfSelectedWeeks.size<=1 ? " semaine sélectionnée":" semaines sélectionnées");
+}
+
+document.getElementById("pfAll").addEventListener("click", ()=>{
+  pfSelectedWeeks.clear(); SCHOOL_ORDER.forEach(w=>pfSelectedWeeks.add(w));
+  refreshPrefillWeekList();
+});
+document.getElementById("pfNone").addEventListener("click", ()=>{
+  pfSelectedWeeks.clear(); refreshPrefillWeekList();
+});
+document.getElementById("pfT1").addEventListener("click", ()=>{
+  pfSelectedWeeks.clear(); weeksForPeriod("t1").forEach(w=>pfSelectedWeeks.add(w));
+  refreshPrefillWeekList();
+});
+document.getElementById("pfT2").addEventListener("click", ()=>{
+  pfSelectedWeeks.clear(); weeksForPeriod("t2").forEach(w=>pfSelectedWeeks.add(w));
+  refreshPrefillWeekList();
+});
+document.getElementById("pfT3").addEventListener("click", ()=>{
+  pfSelectedWeeks.clear(); weeksForPeriod("t3").forEach(w=>pfSelectedWeeks.add(w));
+  refreshPrefillWeekList();
+});
+document.getElementById("pfBonus").addEventListener("click", ()=>{
+  pfSelectedWeeks.clear(); weeksForPeriod("bonus").forEach(w=>pfSelectedWeeks.add(w));
+  refreshPrefillWeekList();
+});
+
+function renderPrefillGrid(){
+  pfGrid.innerHTML="";
+  const thead=document.createElement("thead");
+  const trh=document.createElement("tr");
+  const th0=document.createElement("th"); th0.textContent="Créneau"; trh.appendChild(th0);
+  DAYS.forEach(d=>{ const th=document.createElement("th"); th.textContent=d.slice(0,3).toUpperCase(); trh.appendChild(th); });
+  thead.appendChild(trh); pfGrid.appendChild(thead);
+
+  const tbody=document.createElement("tbody");
+  SLOTS.forEach(slot=>{
+    const tr=document.createElement("tr");
+    const td0=document.createElement("td"); td0.textContent=slot; tr.appendChild(td0);
+
+    DAYS.forEach(day=>{
+      const td=document.createElement("td");
+      const act = (TEMPLATE[slot] && TEMPLATE[slot][day]) ? TEMPLATE[slot][day] : "Occupation";
+      const b=document.createElement("button");
+      b.className="cell";
+      b.style.background = COLORS[act] || "#444";
+      b.style.color = (act==="Occupation") ? "#777" : "#0f0f0f";
+      b.textContent = (act==="Occupation") ? "" : act;
+      b.addEventListener("click", ()=>openPrefillPicker(slot, day, act));
+      td.appendChild(b); tr.appendChild(td);
+    });
+
+    tbody.appendChild(tr);
+  });
+  pfGrid.appendChild(tbody);
+}
+
+// prefill picker modal
+const pfOverlay=document.getElementById("pfOverlay");
+const pfChoices=document.getElementById("pfChoices");
+let pfCtx=null;
+
+function openPrefillPicker(slot, day, current){
+  pfCtx={slot,day,current};
+  document.getElementById("pfMTitle").textContent = slot+" — "+day;
+  document.getElementById("pfMSub").textContent = "Choisis une activité pour le modèle";
+  pfChoices.innerHTML="";
+  ACTIVITIES.forEach(a=>{
+    const btn=document.createElement("button");
+    btn.className="choice"+(a===current?" sel":"");
+    btn.style.background = COLORS[a] || "#444";
+    btn.style.color = (a==="Occupation") ? "#888" : "#0f0f0f";
+    btn.textContent=a;
+    btn.addEventListener("click", ()=>{
+      pfChoices.querySelectorAll(".choice").forEach(x=>x.classList.remove("sel"));
+      btn.classList.add("sel");
+    });
+    pfChoices.appendChild(btn);
+  });
+  pfOverlay.classList.add("open");
+}
+function closePrefillPicker(){ pfOverlay.classList.remove("open"); pfCtx=null; }
+
+document.getElementById("pfCancel").addEventListener("click", closePrefillPicker);
+pfOverlay.addEventListener("click",(e)=>{ if(e.target===pfOverlay) closePrefillPicker(); });
+
+document.getElementById("pfOk").addEventListener("click", ()=>{
+  const sel=pfChoices.querySelector(".choice.sel");
+  if(!sel || !pfCtx) return;
+  TEMPLATE[pfCtx.slot] ||= {};
+  TEMPLATE[pfCtx.slot][pfCtx.day] = sel.textContent;
+  closePrefillPicker();
+  renderPrefillGrid();
+});
+
+document.getElementById("pfCopyFromWeek").addEventListener("click", ()=>{
+  const w=parseInt(pfSourceWeek.value,10);
+  if(!Number.isFinite(w)) return;
+  const t=emptyTemplate();
+  for(const slot of SLOTS) for(const day of DAYS) t[slot][day]=getCell(w,slot,day);
+  TEMPLATE=t;
+  saveTemplate(TEMPLATE);
+  toast("Modèle copié depuis S"+w);
+  renderPrefillGrid();
+});
+
+document.getElementById("pfClear").addEventListener("click", ()=>{
+  TEMPLATE=emptyTemplate();
+  saveTemplate(TEMPLATE);
+  toast("Modèle vidé");
+  renderPrefillGrid();
+});
+document.getElementById("pfSave").addEventListener("click", ()=>{
+  saveTemplate(TEMPLATE);
+  toast("Modèle enregistré");
+});
+
+document.getElementById("pfApply").addEventListener("click", ()=>{
+  const weeks=Array.from(pfSelectedWeeks);
+  if(!weeks.length){ toast("Aucune semaine cochée"); return; }
+
+  const onlyEmpty = document.getElementById("pfOnlyEmpty").checked;
+  const includeOcc = document.getElementById("pfIncludeOccupation").checked;
+
+  let writes=0;
+  for(const w of weeks){
+    for(const slot of SLOTS){
+      for(const day of DAYS){
+        const val = (TEMPLATE[slot] && TEMPLATE[slot][day]) ? TEMPLATE[slot][day] : "Occupation";
+        if(!includeOcc && val==="Occupation") continue;
+        if(onlyEmpty){
+          const cur=getCell(w,slot,day);
+          if(cur!=="Occupation") continue;
+        }
+        setCell(w,slot,day,val);
+        writes++;
+      }
+    }
+  }
+  toast(`Modèle appliqué (${writes} cellules)`);
+  renderWeek(); renderStats(); renderAdvStats();
+});
+
+/* =======================
+   STATISTIQUES AVANCÉES (activités)
+======================= */
+const aaPeriod=document.getElementById("aaPeriod");
+const aaChecks=document.getElementById("aaChecks");
+const aaWeeks=document.getElementById("aaWeeks");
+const aaTotal=document.getElementById("aaTotal");
+const aaAvg=document.getElementById("aaAvg");
+const aaBars=document.getElementById("aaBars");
+const aaPie=document.getElementById("aaPie");
+
+const advActs = ACTIVITIES.filter(a=>a && a!=="Occupation");
+const advSelected = new Set(advActs);
+
+function renderAdvChecks(){
+  aaChecks.innerHTML="";
+  advActs.forEach(act=>{
+    const id="aa_"+act.replace(/[^\w]+/g,"_");
+    const row=document.createElement("label");
+    row.className="aa-row";
+    row.innerHTML = `
+      <input type="checkbox" id="${id}" ${advSelected.has(act)?"checked":""}>
+      <span class="aa-swatch" style="background:${COLORS[act]||"#777"}"></span>
+      <span class="aa-name">${act}</span>
+    `;
+    row.querySelector("input").addEventListener("change",(e)=>{
+      if(e.target.checked) advSelected.add(act); else advSelected.delete(act);
+      renderAdvStats();
+    });
+    aaChecks.appendChild(row);
+  });
+
+  document.getElementById("aaAll").onclick = ()=>{
+    advSelected.clear(); advActs.forEach(a=>advSelected.add(a));
+    renderAdvChecks(); renderAdvStats();
   };
-
-  const FAMILY_COLORS = {
-    "Gestion": "#7f8c8d",
-    "Pédagogie": "#c8f53a",
-    "Projets": "#27ae60",
-    "Réunions": "#2980b9",
-    "Autres": "#ff9ff3"
+  document.getElementById("aaNone").onclick = ()=>{
+    advSelected.clear();
+    renderAdvChecks(); renderAdvStats();
   };
-
-  function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
-
-  // Charge config ou crée config
-  let ADV = null;
-  try { ADV = JSON.parse(localStorage.getItem(LS_ADV) || "null"); } catch(e) {}
-
-  if(!ADV || !ADV.defs || !ADV.include){
-    ADV = {
-      defs: deepClone(DEFAULT_FAMILIES),   // famille -> [activités...]
-      include: Object.keys(DEFAULT_FAMILIES).reduce((acc,k)=>{ acc[k]=true; return acc; }, {}),
-      view: "stack_week",
-      period: "school"
-    };
-    localStorage.setItem(LS_ADV, JSON.stringify(ADV));
-  }
-
-  // --- CSS léger
-  const style = document.createElement("style");
-  style.textContent = `
-    #view-advstats .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-    #view-advstats .leg{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px}
-    #view-advstats .sw{width:12px;height:12px;border-radius:4px}
-    #view-advstats .grid2{display:grid;grid-template-columns:1fr;gap:12px}
-    @media(min-width:900px){#view-advstats .grid2{grid-template-columns:1fr 1fr}}
-    #view-advstats .panel{border:1px solid var(--border);border-radius:14px;padding:12px;background:rgba(255,255,255,.02)}
-    #view-advstats .panel h4{margin:0 0 8px 0;font-size:14px}
-    #view-advstats .chk{display:flex;gap:10px;align-items:center;color:var(--text);font-size:13px;margin:6px 0}
-    #view-advstats .chk small{color:var(--dim)}
-    #view-advstats .acts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
-    #view-advstats .acts .chk{margin:0}
-    #view-advstats .chartbox{border:1px solid var(--border);border-radius:14px;overflow:auto;background:rgba(255,255,255,.02)}
-    #view-advstats .charttitle{font-weight:900;margin-bottom:8px}
-    #view-advstats .subhint{color:var(--dim);font-size:12px;margin-top:6px}
-    #view-advstats .kpi{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-  `;
-  document.head.appendChild(style);
-
-  // --- Onglet
-  const tabs = document.querySelector(".tabs");
-  const tab = document.createElement("button");
-  tab.className = "tab";
-  tab.dataset.view = "advstats";
-  tab.textContent = "📊 Statistiques avancées";
-  tabs.appendChild(tab);
-
-  // --- Section
-  const views = document.querySelector(".views");
-  const sec = document.createElement("section");
-  sec.id = "view-advstats";
-  sec.innerHTML = `
-    <div class="card">
-      <div class="row">
-        <div class="pill">Période :</div>
-        <select id="advPeriod">
-          <option value="school">Année scolaire</option>
-          <option value="t1">Trimestre 1</option>
-          <option value="t2">Trimestre 2</option>
-          <option value="t3">Trimestre 3</option>
-          <option value="bonus">Bonus été</option>
-        </select>
-
-        <div class="pill">Vue :</div>
-        <select id="advView">
-          <option value="stack_week">Empilé par semaine</option>
-          <option value="quarter_totals">Totaux par trimestre</option>
-          <option value="pie_year">Camembert annuel</option>
-        </select>
-
-        <div class="spacer"></div>
-        <button class="btn secondary" id="advReset">Réinitialiser (familles)</button>
-      </div>
-
-      <div class="kpi">
-        <div class="pill">Total période : <b id="advTotal" style="color:var(--text)">0</b> h</div>
-        <div class="pill">Moyenne / semaine : <b id="advAvg" style="color:var(--text)">0</b> h</div>
-      </div>
-
-      <div style="height:12px"></div>
-
-      <div class="grid2">
-        <div class="panel">
-          <h4>✅ Statistiques à prendre en compte</h4>
-          <div class="subhint">Coche les familles que tu veux afficher dans les graphiques.</div>
-          <div id="advInclude"></div>
-
-          <div style="height:10px"></div>
-          <h4>🛠️ Définition des familles</h4>
-          <div class="subhint">Tu peux changer la composition : coche/décoche les activités dans chaque famille.</div>
-          <div id="advDefs"></div>
-        </div>
-
-        <div>
-          <div class="charttitle" id="advTitle">Graphique</div>
-          <div class="chartbox">
-            <div id="advChart" style="min-height:340px;padding:10px"></div>
-          </div>
-          <div class="subhint" id="advHint"></div>
-
-          <div class="legend" id="advLegend"></div>
-        </div>
-      </div>
-    </div>
-  `;
-  views.appendChild(sec);
-
-  // --- Activation onglet
-  tab.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-    tab.classList.add("active");
-    document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
-    sec.classList.add("active");
-    renderAll();
-  });
-
-  // --- UI refs
-  const elPeriod = sec.querySelector("#advPeriod");
-  const elView   = sec.querySelector("#advView");
-  const elInclude= sec.querySelector("#advInclude");
-  const elDefs   = sec.querySelector("#advDefs");
-  const elChart  = sec.querySelector("#advChart");
-  const elTitle  = sec.querySelector("#advTitle");
-  const elHint   = sec.querySelector("#advHint");
-  const elLegend = sec.querySelector("#advLegend");
-  const elTotal  = sec.querySelector("#advTotal");
-  const elAvg    = sec.querySelector("#advAvg");
-  const btnReset = sec.querySelector("#advReset");
-
-  // Init selects
-  elPeriod.value = ADV.period || "school";
-  elView.value   = ADV.view || "stack_week";
-
-  function save(){
-    ADV.period = elPeriod.value;
-    ADV.view = elView.value;
-    localStorage.setItem(LS_ADV, JSON.stringify(ADV));
-  }
-
-  // Liste d'activités sans Occupation
-  const ALL_ACTS = ACTIVITIES_REF.filter(a=>a && a!=="Occupation");
-
-  function families(){
-    return Object.keys(ADV.defs);
-  }
-
-  function includedFamilies(){
-    return families().filter(f=>ADV.include[f]);
-  }
-
-  function colorForFamily(f){
-    return FAMILY_COLORS[f] || "#777";
-  }
-
-  // --- Render checklists
-  function renderInclude(){
-    elInclude.innerHTML = "";
-    families().forEach(f=>{
-      const id = "inc_" + f.replace(/\s+/g,"_");
-      const row = document.createElement("div");
-      row.className = "chk";
-      row.innerHTML = `
-        <input type="checkbox" id="${id}" ${ADV.include[f] ? "checked":""}>
-        <label for="${id}"><b>${f}</b> <small>(couleur)</small></label>
-        <span class="sw" style="background:${colorForFamily(f)};margin-left:auto"></span>
-      `;
-      row.querySelector("input").addEventListener("change", (e)=>{
-        ADV.include[f] = e.target.checked;
-        localStorage.setItem(LS_ADV, JSON.stringify(ADV));
-        renderAll();
-      });
-      elInclude.appendChild(row);
-    });
-  }
-
-  function renderDefs(){
-    elDefs.innerHTML = "";
-    families().forEach(f=>{
-      const box = document.createElement("div");
-      box.style.margin = "10px 0";
-      box.innerHTML = `<div style="display:flex;align-items:center;gap:10px">
-        <div class="sw" style="background:${colorForFamily(f)}"></div>
-        <b>${f}</b>
-      </div>`;
-
-      const grid = document.createElement("div");
-      grid.className = "acts";
-
-      const set = new Set(ADV.defs[f] || []);
-      ALL_ACTS.forEach(a=>{
-        const id = `def_${f}_${a}`.replace(/[^\w]+/g,"_");
-        const item = document.createElement("div");
-        item.className = "chk";
-        item.innerHTML = `
-          <input type="checkbox" id="${id}" ${set.has(a) ? "checked":""}>
-          <label for="${id}">${a}</label>
-        `;
-        item.querySelector("input").addEventListener("change", (e)=>{
-          const s = new Set(ADV.defs[f] || []);
-          if(e.target.checked) s.add(a); else s.delete(a);
-          ADV.defs[f] = Array.from(s);
-          localStorage.setItem(LS_ADV, JSON.stringify(ADV));
-          renderAll();
-        });
-        grid.appendChild(item);
-      });
-
-      box.appendChild(grid);
-      elDefs.appendChild(box);
-    });
-  }
-
-  function renderLegend(){
-    const inc = includedFamilies();
-    elLegend.innerHTML = inc.map(f=>`
-      <div class="leg"><span class="sw" style="background:${colorForFamily(f)}"></span>${f}</div>
-    `).join("");
-  }
-
-  // --- Data: count per family for one week
-  function familyForActivity(a){
-    for(const f of families()){
-      const list = ADV.defs[f] || [];
-      if(list.includes(a)) return f;
-    }
-    return null;
-  }
-
-  function weeks(period){
-    return weeksForPeriod_REF(period);
-  }
-
-  function computeWeekly(period){
-    const ws = weeks(period);
-    const inc = new Set(includedFamilies());
-
-    return ws.map(w=>{
-      const fam = {};
-      includedFamilies().forEach(f=>fam[f]=0);
-
-      for(const slot of SLOTS_REF){
-        for(const day of DAYS_REF){
-          const a = getCell_REF(w, slot, day);
-          if(!a || a==="Occupation") continue;
-          const f = familyForActivity(a);
-          if(f && inc.has(f)) fam[f] += 1;
-        }
-      }
-      return {week:w, fam};
-    });
-  }
-
-  function sumObj(obj){ return Object.values(obj).reduce((s,v)=>s+(v||0),0); }
-
-  function computeTotals(weekly){
-    const tot = {};
-    includedFamilies().forEach(f=>tot[f]=0);
-    weekly.forEach(it=>includedFamilies().forEach(f=>tot[f]+=it.fam[f]||0));
-    return tot;
-  }
-
-  // --- KPI
-  function renderKPI(period){
-    const wk = computeWeekly(period);
-    const tot = computeTotals(wk);
-    const total = sumObj(tot);
-    const nb = Math.max(1, wk.length);
-    elTotal.textContent = String(total);
-    elAvg.textContent = (total/nb).toFixed(1);
-  }
-
-  // --- SVG: stacked weekly
-  function svgStackedWeekly(weekly){
-    const inc = includedFamilies();
-    const n = weekly.length;
-
-    if(inc.length === 0){
-      elChart.innerHTML = `<div class="hint">Aucune famille sélectionnée. Coche au moins une famille.</div>`;
-      elHint.textContent = "";
-      return;
-    }
-
-    const barW=18, gap=6, padL=40, padR=10, padT=20, padB=30;
-    const W = Math.max(720, padL+padR+n*(barW+gap));
-    const H = 320;
-    const maxWeek = Math.max(1, ...weekly.map(it=>sumObj(it.fam)));
-
-    let bars="";
-    weekly.forEach((it,i)=>{
-      const x = padL + i*(barW+gap);
-      let y = H - padB;
-
-      inc.forEach(f=>{
-        const v = it.fam[f]||0;
-        if(v<=0) return;
-        const h = (v/maxWeek)*(H-padT-padB);
-        y -= h;
-        bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${colorForFamily(f)}"></rect>`;
-      });
-
-      const show = n<=18 ? true : (i%2===0);
-      if(show){
-        bars += `<text x="${x+barW/2}" y="${H-10}" font-size="10" fill="#8b8b8b" text-anchor="middle">S${it.week}</text>`;
-      }
-    });
-
-    const axis = `
-      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <text x="${padL-8}" y="${padT+8}" font-size="10" fill="#8b8b8b" text-anchor="end">${maxWeek}</text>
-      <text x="${padL-8}" y="${H-padB+4}" font-size="10" fill="#8b8b8b" text-anchor="end">0</text>
-    `;
-
-    elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${axis}${bars}</svg>`;
-    elHint.textContent = `Empilé par semaine (max semaine = ${maxWeek} h).`;
-  }
-
-  // --- SVG: quarter totals (T1/T2/T3/Bonus/Total)
-  function svgQuarterTotals(){
-    const inc = includedFamilies();
-    if(inc.length === 0){
-      elChart.innerHTML = `<div class="hint">Aucune famille sélectionnée. Coche au moins une famille.</div>`;
-      elHint.textContent = "";
-      return;
-    }
-
-    const periods = [
-      {k:"t1", label:"T1"},
-      {k:"t2", label:"T2"},
-      {k:"t3", label:"T3"},
-      {k:"bonus", label:"Bonus"},
-      {k:"school", label:"Total"}
-    ];
-
-    const totalsBy = periods.map(p=>{
-      const wk = computeWeekly(p.k);
-      return {label:p.label, tot: computeTotals(wk)};
-    });
-
-    const maxBar = Math.max(1, ...totalsBy.map(x=>sumObj(x.tot)));
-
-    const padL=50,padR=10,padT=20,padB=40,W=760,H=320;
-    const groupW=(W-padL-padR)/totalsBy.length;
-    const barW=Math.min(70, groupW-20);
-
-    let svg = `
-      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <text x="${padL-8}" y="${padT+8}" font-size="10" fill="#8b8b8b" text-anchor="end">${maxBar}</text>
-      <text x="${padL-8}" y="${H-padB+4}" font-size="10" fill="#8b8b8b" text-anchor="end">0</text>
-    `;
-
-    totalsBy.forEach((g,i)=>{
-      const x = padL + i*groupW + (groupW-barW)/2;
-      let y = H - padB;
-
-      inc.forEach(f=>{
-        const v = g.tot[f]||0;
-        if(v<=0) return;
-        const h = (v/maxBar)*(H-padT-padB);
-        y -= h;
-        svg += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="${colorForFamily(f)}"></rect>`;
-      });
-
-      svg += `<text x="${x+barW/2}" y="${H-15}" font-size="12" fill="#8b8b8b" text-anchor="middle">${g.label}</text>`;
-      svg += `<text x="${x+barW/2}" y="${padT+12}" font-size="10" fill="#8b8b8b" text-anchor="middle">${sumObj(g.tot)}h</text>`;
-    });
-
-    elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${svg}</svg>`;
-    elHint.textContent = `Totaux empilés par trimestre (selon familles cochées).`;
-  }
-
-  // --- SVG: pie annual (school)
-  function svgPieAnnual(){
-    const inc = includedFamilies();
-    if(inc.length === 0){
-      elChart.innerHTML = `<div class="hint">Aucune famille sélectionnée. Coche au moins une famille.</div>`;
-      elHint.textContent = "";
-      return;
-    }
-
-    const wk = computeWeekly("school");
-    const totals = computeTotals(wk);
-    const sum = sumObj(totals);
-
-    if(sum<=0){
-      elChart.innerHTML = `<div class="hint">Aucune donnée sur l’année scolaire.</div>`;
-      elHint.textContent = "";
-      return;
-    }
-
-    const W=420,H=340,cx=210,cy=160,r=120;
-    function polar(a){ return [cx + r*Math.cos(a), cy + r*Math.sin(a)]; }
-    function arcPath(a0,a1){
-      const [x0,y0]=polar(a0), [x1,y1]=polar(a1);
-      const large = (a1-a0)>Math.PI ? 1 : 0;
-      return `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`;
-    }
-
-    let a = -Math.PI/2;
-    let paths="";
-    inc.forEach(f=>{
-      const v = totals[f]||0;
-      if(v<=0) return;
-      const frac = v/sum;
-      const a1 = a + frac*2*Math.PI;
-      paths += `<path d="${arcPath(a,a1)}" fill="${colorForFamily(f)}"></path>`;
-      a = a1;
-    });
-
-    elChart.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
-        ${paths}
-        <text x="${cx}" y="${H-18}" font-size="12" fill="#8b8b8b" text-anchor="middle">Total: ${sum} h</text>
-      </svg>
-    `;
-    elHint.textContent = `Camembert annuel (année scolaire) selon familles cochées.`;
-  }
-
-  function renderAll(){
-    renderInclude();
-    renderDefs();
-    renderLegend();
-    save();
-    renderKPI(elPeriod.value);
-
-    elTitle.textContent =
-      elView.value==="stack_week" ? "Empilé par semaine" :
-      elView.value==="quarter_totals" ? "Totaux par trimestre" :
-      "Camembert annuel";
-
-    if(elView.value==="stack_week"){
-      svgStackedWeekly(computeWeekly(elPeriod.value));
-    } else if(elView.value==="quarter_totals"){
-      svgQuarterTotals();
-    } else {
-      svgPieAnnual();
-    }
-  }
-
-  // --- Events
-  elPeriod.addEventListener("change", renderAll);
-  elView.addEventListener("change", renderAll);
-
-  btnReset.addEventListener("click", ()=>{
-    ADV.defs = deepClone(DEFAULT_FAMILIES);
-    ADV.include = Object.keys(DEFAULT_FAMILIES).reduce((acc,k)=>{ acc[k]=true; return acc; }, {});
-    localStorage.setItem(LS_ADV, JSON.stringify(ADV));
-    renderAll();
-  });
-
-  // --- première peinture
-  renderAll();
-
-})();
-/* ===== END STATISTIQUES AVANCÉES ===== */
-
-  /* ===== BEGIN ONGLET "PRÉ-REMPLISSAGE" (semaine modèle -> appliquer à semaines cochées) ===== */
-(function(){
-  // Anti-duplication
-  if (document.querySelector('.tabs [data-view="prefill"]') || document.getElementById("view-prefill")) return;
-
-  // Références robustes (fonctionne même si const globaux non attachés à window)
-  const SLOTS_REF = (typeof SLOTS !== "undefined") ? SLOTS : null;
-  const DAYS_REF  = (typeof DAYS  !== "undefined") ? DAYS  : null;
-  const ACTS_REF  = (typeof ACTIVITIES !== "undefined") ? ACTIVITIES : null;
-  const getCell_REF = (typeof getCell === "function") ? getCell : null;
-  const setCell_REF = (typeof setCell === "function") ? setCell : null;
-  const COLORS_REF  = (typeof COLORS !== "undefined") ? COLORS : {};
-  const renderWeek_REF = (typeof renderWeek === "function") ? renderWeek : null;
-  const renderStats_REF = (typeof renderStats === "function") ? renderStats : null;
-  const weeksForPeriod_REF = (typeof weeksForPeriod === "function") ? weeksForPeriod : null;
-
-  if(!SLOTS_REF || !DAYS_REF || !ACTS_REF || !getCell_REF || !setCell_REF){
-    console.warn("Pré-remplissage: dépendances manquantes (SLOTS/DAYS/ACTIVITIES/getCell/setCell).");
-    return;
-  }
-
-  const LS_TEMPLATE = "ps_prefill_template_v1";
-
-  // ---------- helpers ----------
-  function toastSafe(msg){
-    try { toast(msg); } catch(e){ /* ignore */ }
-  }
-  function normSpace(s){ return (s||"").trim().replace(/\s+/g," "); }
-
-  function getWeeksList(){
-    // priorité 1: SCHOOL_ORDER si existant
-    if (typeof SCHOOL_ORDER !== "undefined" && Array.isArray(SCHOOL_ORDER) && SCHOOL_ORDER.length) return SCHOOL_ORDER.slice();
-    // priorité 2: weeksForPeriod("school")
-    if (weeksForPeriod_REF) {
-      try { const w = weeksForPeriod_REF("school"); if(Array.isArray(w) && w.length) return w.slice(); } catch(e){}
-    }
-    // priorité 3: semaineSelect options
-    const sel = document.getElementById("weekSelect");
-    if (sel && sel.options && sel.options.length) {
-      return Array.from(sel.options).map(o=>parseInt(o.value,10)).filter(n=>Number.isFinite(n));
-    }
-    // fallback
-    return [];
-  }
-
-  function emptyTemplate(){
-    const t = {};
-    for(const slot of SLOTS_REF){
-      t[slot] = {};
-      for(const day of DAYS_REF) t[slot][day] = "Occupation";
-    }
-    return t;
-  }
-
-  function loadTemplate(){
-    try{
-      const raw = JSON.parse(localStorage.getItem(LS_TEMPLATE) || "null");
-      if(raw && typeof raw === "object") return raw;
-    }catch(e){}
-    return emptyTemplate();
-  }
-
-  function saveTemplate(t){
-    localStorage.setItem(LS_TEMPLATE, JSON.stringify(t));
-  }
-
-  let TEMPLATE = loadTemplate();
-
-  // ---------- inject tab ----------
-  const tabs = document.querySelector(".tabs");
-  const tab = document.createElement("button");
-  tab.className = "tab";
-  tab.dataset.view = "prefill";
-  tab.textContent = "🧩 Pré-remplissage";
-  tabs.appendChild(tab);
-
-  // ---------- inject section ----------
-  const views = document.querySelector(".views");
-  const sec = document.createElement("section");
-  sec.id = "view-prefill";
-  sec.innerHTML = `
-    <div class="card">
-      <div class="row">
-        <div class="pill">Modèle</div>
-        <button class="btn secondary" id="pfCopyFromWeek">Copier depuis…</button>
-        <select id="pfSourceWeek"></select>
-
-        <div class="spacer"></div>
-
-        <button class="btn secondary" id="pfClear">Vider le modèle</button>
-        <button class="btn" id="pfSave">Enregistrer le modèle</button>
-      </div>
-
-      <div class="hint">
-        Crée une semaine modèle ici, puis applique-la à une ou plusieurs semaines (cases à cocher). Ensuite tu ajustes dans l’onglet Semaine (ex: semaine 37).
-      </div>
-
-      <div style="height:12px"></div>
-
-      <div class="row" style="align-items:flex-start">
-        <div style="min-width:280px;max-width:380px;flex:0 0 320px">
-          <div class="pill" style="display:inline-block;margin-bottom:8px">Semaines cibles</div>
-
-          <div class="row" style="margin-bottom:10px">
-            <button class="btn secondary" id="pfAll">Tout</button>
-            <button class="btn secondary" id="pfNone">Aucun</button>
-            <button class="btn secondary" id="pfT1">T1</button>
-            <button class="btn secondary" id="pfT2">T2</button>
-            <button class="btn secondary" id="pfT3">T3</button>
-            <button class="btn secondary" id="pfBonus">Bonus</button>
-          </div>
-
-          <div class="hint" id="pfCount">0 semaine sélectionnée</div>
-
-          <div style="height:10px"></div>
-
-          <div style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02);max-height:360px;overflow:auto" id="pfWeekList"></div>
-
-          <div style="height:12px"></div>
-
-          <div style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02)">
-            <div class="hint" style="margin:0 0 10px 0;color:var(--text);font-weight:800">Appliquer le modèle</div>
-
-            <label class="hint" style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">
-              <input type="checkbox" id="pfOnlyEmpty">
-              Appliquer seulement sur les cases vides (Occupation)
-            </label>
-
-            <label class="hint" style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">
-              <input type="checkbox" id="pfIncludeOccupation">
-              Inclure “Occupation” (écrase tout, y compris les vides)
-            </label>
-
-            <button class="btn" id="pfApply">Appliquer aux semaines cochées</button>
-            <div class="hint" style="margin-top:8px">Astuce : en général, laisse “Inclure Occupation” décoché (on applique seulement ce qui est renseigné dans le modèle).</div>
-          </div>
-        </div>
-
-        <div style="flex:1;min-width:360px">
-          <div class="pill" style="display:inline-block;margin-bottom:8px">Semaine modèle (clic sur une case pour choisir)</div>
-          <div class="gridwrap">
-            <table id="pfGrid"></table>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Modal de choix activité (indépendant du modal principal) -->
-    <div class="overlay" id="pfOverlay">
-      <div class="modal" role="dialog" aria-modal="true">
-        <h3 id="pfMTitle">Choisir une activité</h3>
-        <div class="sub" id="pfMSub"></div>
-        <div class="choices" id="pfChoices"></div>
-        <div class="actions">
-          <button class="btn secondary" id="pfCancel">Annuler</button>
-          <button class="btn" id="pfOk">OK</button>
-        </div>
-      </div>
-    </div>
-  `;
-  views.appendChild(sec);
-
-  // ---------- tab switching ----------
-  tab.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-    tab.classList.add("active");
-    document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
-    sec.classList.add("active");
-    refreshWeekList();
-    renderTemplateGrid();
-  });
-
-  // ---------- source week dropdown ----------
-  const srcSel = sec.querySelector("#pfSourceWeek");
-  function fillSourceWeeks(){
-    srcSel.innerHTML = "";
-    const weeks = getWeeksList();
-    weeks.forEach(w=>{
-      const o = document.createElement("option");
-      o.value = String(w);
-      o.textContent = "Semaine " + w;
-      srcSel.appendChild(o);
-    });
-  }
-  fillSourceWeeks();
-
-  // ---------- week list checkboxes ----------
-  const weekListEl = sec.querySelector("#pfWeekList");
-  const countEl = sec.querySelector("#pfCount");
-  const selectedWeeks = new Set();
-
-  function updateCount(){
-    const n = selectedWeeks.size;
-    countEl.textContent = n + (n<=1 ? " semaine sélectionnée" : " semaines sélectionnées");
-  }
-
-  function refreshWeekList(){
-    const weeks = getWeeksList();
-    weekListEl.innerHTML = "";
-
-    weeks.forEach(w=>{
-      const id = "pfw_" + w;
-      const row = document.createElement("label");
-      row.className = "hint";
-      row.style.display = "flex";
-      row.style.gap = "10px";
-      row.style.alignItems = "center";
-      row.style.margin = "6px 0";
-      row.innerHTML = `
-        <input type="checkbox" id="${id}">
-        <span style="color:var(--text);font-weight:800">S${w}</span>
-      `;
-      const cb = row.querySelector("input");
-      cb.checked = selectedWeeks.has(w);
-      cb.addEventListener("change", ()=>{
-        if(cb.checked) selectedWeeks.add(w);
-        else selectedWeeks.delete(w);
-        updateCount();
-      });
-      weekListEl.appendChild(row);
-    });
-
-    updateCount();
-  }
-
-  // Buttons All/None + period shortcuts (uses weeksForPeriod if available)
-  function setSelection(list){
-    selectedWeeks.clear();
-    list.forEach(w=>selectedWeeks.add(w));
-    refreshWeekList();
-  }
-
-  sec.querySelector("#pfAll").addEventListener("click", ()=>setSelection(getWeeksList()));
-  sec.querySelector("#pfNone").addEventListener("click", ()=>setSelection([]));
-
-  function periodWeeksSafe(k){
-    if(!weeksForPeriod_REF) return [];
-    try{
-      const w = weeksForPeriod_REF(k);
-      return Array.isArray(w) ? w : [];
-    }catch(e){ return []; }
-  }
-  sec.querySelector("#pfT1").addEventListener("click", ()=>setSelection(periodWeeksSafe("t1")));
-  sec.querySelector("#pfT2").addEventListener("click", ()=>setSelection(periodWeeksSafe("t2")));
-  sec.querySelector("#pfT3").addEventListener("click", ()=>setSelection(periodWeeksSafe("t3")));
-  sec.querySelector("#pfBonus").addEventListener("click", ()=>setSelection(periodWeeksSafe("bonus")));
-
-  // ---------- Template grid render ----------
-  const grid = sec.querySelector("#pfGrid");
-
-  function renderTemplateGrid(){
-    // header
-    grid.innerHTML = "";
-    const thead = document.createElement("thead");
-    const trh = document.createElement("tr");
-    const th0 = document.createElement("th");
-    th0.textContent = "Créneau";
-    trh.appendChild(th0);
-    DAYS_REF.forEach(d=>{
-      const th = document.createElement("th");
-      th.textContent = d.slice(0,3).toUpperCase();
-      trh.appendChild(th);
-    });
-    thead.appendChild(trh);
-    grid.appendChild(thead);
-
-    const tbody = document.createElement("tbody");
-
-    SLOTS_REF.forEach(slot=>{
-      const tr = document.createElement("tr");
-
-      const td0 = document.createElement("td");
-      td0.textContent = slot;
-      tr.appendChild(td0);
-
-      DAYS_REF.forEach(day=>{
-        const td = document.createElement("td");
-        const act = (TEMPLATE[slot] && TEMPLATE[slot][day]) ? TEMPLATE[slot][day] : "Occupation";
-
-        const b = document.createElement("button");
-        b.className = "cell";
-        b.style.background = (COLORS_REF && COLORS_REF[act]) ? COLORS_REF[act] : "#444";
-        b.style.color = (act==="Occupation") ? "#777" : "#0f0f0f";
-        b.textContent = (act==="Occupation") ? "" : act;
-
-        b.addEventListener("click", ()=>openPicker(slot, day, act));
-        td.appendChild(b);
-        tr.appendChild(td);
-      });
-
-      tbody.appendChild(tr);
-    });
-
-    grid.appendChild(tbody);
-  }
-
-  // ---------- Picker modal ----------
-  const overlay = sec.querySelector("#pfOverlay");
-  const choices = sec.querySelector("#pfChoices");
-  const mSub = sec.querySelector("#pfMSub");
-  const mTitle = sec.querySelector("#pfMTitle");
-  let pickCtx = null;
-
-  function openPicker(slot, day, current){
-    pickCtx = {slot, day, current};
-    mTitle.textContent = slot + " — " + day;
-    mSub.textContent = "Choisis une activité pour le modèle";
-
-    choices.innerHTML = "";
-    ACTS_REF.forEach(a=>{
-      const btn = document.createElement("button");
-      btn.className = "choice" + (a===current ? " sel" : "");
-      btn.style.background = (COLORS_REF && COLORS_REF[a]) ? COLORS_REF[a] : "#444";
-      btn.style.color = (a==="Occupation") ? "#888" : "#0f0f0f";
-      btn.textContent = a;
-      btn.addEventListener("click", ()=>{
-        choices.querySelectorAll(".choice").forEach(x=>x.classList.remove("sel"));
-        btn.classList.add("sel");
-      });
-      choices.appendChild(btn);
-    });
-
-    overlay.classList.add("open");
-  }
-  function closePicker(){ overlay.classList.remove("open"); pickCtx=null; }
-
-  sec.querySelector("#pfCancel").addEventListener("click", closePicker);
-  overlay.addEventListener("click", (e)=>{ if(e.target===overlay) closePicker(); });
-
-  sec.querySelector("#pfOk").addEventListener("click", ()=>{
-    const sel = choices.querySelector(".choice.sel");
-    if(!sel || !pickCtx) return;
-    const val = sel.textContent;
-
-    TEMPLATE[pickCtx.slot] ||= {};
-    TEMPLATE[pickCtx.slot][pickCtx.day] = val;
-
-    closePicker();
-    renderTemplateGrid();
-  });
-
-  // ---------- Copy from week ----------
-  sec.querySelector("#pfCopyFromWeek").addEventListener("click", ()=>{
-    const w = parseInt(srcSel.value,10);
-    if(!Number.isFinite(w)) return;
-
-    const t = emptyTemplate();
-    for(const slot of SLOTS_REF){
-      for(const day of DAYS_REF){
-        t[slot][day] = getCell_REF(w, slot, day);
+}
+renderAdvChecks();
+
+aaPeriod.addEventListener("change", renderAdvStats);
+
+function computeAdv(period){
+  const wks = weeksForPeriod(period);
+  const totals={};
+  advActs.forEach(a=>totals[a]=0);
+
+  for(const w of wks){
+    for(const slot of SLOTS){
+      for(const day of DAYS){
+        const a=getCell(w,slot,day);
+        if(!a || a==="Occupation") continue;
+        if(totals[a] !== undefined) totals[a]+=1;
       }
     }
-    TEMPLATE = t;
-    saveTemplate(TEMPLATE);
-    toastSafe("Modèle copié depuis S" + w);
-    renderTemplateGrid();
-  });
-
-  // ---------- Clear / Save ----------
-  sec.querySelector("#pfClear").addEventListener("click", ()=>{
-    TEMPLATE = emptyTemplate();
-    saveTemplate(TEMPLATE);
-    toastSafe("Modèle vidé");
-    renderTemplateGrid();
-  });
-  sec.querySelector("#pfSave").addEventListener("click", ()=>{
-    saveTemplate(TEMPLATE);
-    toastSafe("Modèle enregistré");
-  });
-
-  // ---------- Apply to selected weeks ----------
-  sec.querySelector("#pfApply").addEventListener("click", ()=>{
-    const weeks = Array.from(selectedWeeks);
-    if(!weeks.length){
-      toastSafe("Aucune semaine cochée");
-      return;
-    }
-
-    const onlyEmpty = !!sec.querySelector("#pfOnlyEmpty").checked;
-    const includeOcc = !!sec.querySelector("#pfIncludeOccupation").checked;
-
-    let writes = 0;
-    for(const w of weeks){
-      for(const slot of SLOTS_REF){
-        for(const day of DAYS_REF){
-          const val = (TEMPLATE[slot] && TEMPLATE[slot][day]) ? TEMPLATE[slot][day] : "Occupation";
-
-          if(!includeOcc && val === "Occupation") continue; // on applique seulement ce qui est renseigné
-          if(onlyEmpty){
-            const cur = getCell_REF(w, slot, day);
-            if(cur !== "Occupation") continue;
-          }
-
-          setCell_REF(w, slot, day, val);
-          writes++;
-        }
-      }
-    }
-
-    toastSafe(`Modèle appliqué (${writes} cellules)`);
-    // rafraîchit la semaine affichée et les stats si dispo
-    try { if(renderWeek_REF) renderWeek_REF(); } catch(e){}
-    try { if(renderStats_REF) renderStats_REF(); } catch(e){}
-  });
-
-  // init
-  refreshWeekList();
-  renderTemplateGrid();
-
-})();
-/* ===== END ONGLET "PRÉ-REMPLISSAGE" ===== */
-
-/* ===== BEGIN PATCH: enlever Vacances + ajouter Statistiques avancées (sans toucher Statistiques principal) ===== */
-(function(){
-  // --- 1) SUPPRIMER l’onglet Vacances + la page Vacances (sans toucher le reste)
-  const vacTab = document.querySelector('.tabs [data-view="vacances"]');
-  if (vacTab) vacTab.remove();
-  const vacView = document.getElementById("view-vacances");
-  if (vacView) vacView.remove();
-
-  // --- 2) Anti-duplication de l’onglet avancé
-  if (document.querySelector('.tabs [data-view="advstats"]') || document.getElementById("view-advstats")) return;
-
-  // --- 3) Références robustes (fonctionne même si tes const ne sont pas sur window)
-  const ACTIVITIES_REF = (typeof ACTIVITIES !== "undefined") ? ACTIVITIES : null;
-  const COLORS_REF     = (typeof COLORS !== "undefined") ? COLORS : {};
-  const SLOTS_REF      = (typeof SLOTS !== "undefined") ? SLOTS : null;
-  const DAYS_REF       = (typeof DAYS !== "undefined") ? DAYS : null;
-  const getCell_REF    = (typeof getCell === "function") ? getCell : null;
-  const weeksForPeriod_REF = (typeof weeksForPeriod === "function") ? weeksForPeriod : null;
-
-  if(!ACTIVITIES_REF || !SLOTS_REF || !DAYS_REF || !getCell_REF || !weeksForPeriod_REF){
-    console.warn("Statistiques avancées: dépendances manquantes (ACTIVITIES/SLOTS/DAYS/getCell/weeksForPeriod).");
-    return;
   }
-
-  // --- 4) Ajout onglet "Statistiques avancées"
-  const tabs = document.querySelector(".tabs");
-  const tab = document.createElement("button");
-  tab.className = "tab";
-  tab.dataset.view = "advstats";
-  tab.textContent = "📊 Statistiques avancées";
-  tabs.appendChild(tab);
-
-  // --- 5) Ajout page
-  const views = document.querySelector(".views");
-  const sec = document.createElement("section");
-  sec.id = "view-advstats";
-  sec.innerHTML = `
-    <div class="card">
-      <div class="row">
-        <div class="pill">Période :</div>
-        <select id="asPeriod">
-          <option value="school">Année scolaire</option>
-          <option value="t1">Trimestre 1</option>
-          <option value="t2">Trimestre 2</option>
-          <option value="t3">Trimestre 3</option>
-          <option value="bonus">Bonus été</option>
-        </select>
-
-        <div class="spacer"></div>
-
-        <div class="pill">Total :</div>
-        <div class="pill"><b id="asTotal" style="color:var(--text)">0</b> h</div>
-
-        <div class="pill">Moyenne / semaine :</div>
-        <div class="pill"><b id="asAvg" style="color:var(--text)">0</b></div>
-      </div>
-
-      <div class="hint">Choisis la période et les activités à prendre en compte (menu à cocher). (Aucun impact sur l’onglet Statistiques principal.)</div>
-
-      <div style="height:12px"></div>
-
-      <div class="row" style="align-items:flex-start">
-        <div style="min-width:280px;max-width:420px;flex:0 0 360px">
-          <div class="pill" style="display:inline-block;margin-bottom:10px">Activités à prendre en compte</div>
-
-          <div class="row" style="margin-bottom:10px">
-            <button class="btn secondary" id="asAll">Tout</button>
-            <button class="btn secondary" id="asNone">Aucun</button>
-          </div>
-
-          <div id="asChecks" style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02);max-height:440px;overflow:auto"></div>
-        </div>
-
-        <div style="flex:1;min-width:360px">
-          <div style="display:grid;grid-template-columns:1fr;gap:12px">
-            <div style="border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.02);padding:10px;overflow:auto">
-              <div style="font-weight:900;margin-bottom:6px">Barres (heures par activité)</div>
-              <div id="asBars"></div>
-            </div>
-
-            <div style="border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.02);padding:10px;overflow:auto">
-              <div style="font-weight:900;margin-bottom:6px">Camembert (répartition)</div>
-              <div id="asPie"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  views.appendChild(sec);
-
-  // --- 6) CSS léger
-  const style = document.createElement("style");
-  style.textContent = `
-    #view-advstats .as-row{display:flex;align-items:center;gap:10px;margin:6px 0;color:var(--text);font-size:13px}
-    #view-advstats .as-swatch{width:12px;height:12px;border-radius:4px;flex:0 0 12px}
-    #view-advstats .as-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #view-advstats .as-val{color:var(--dim);font-family:var(--mono);font-size:12px}
-  `;
-  document.head.appendChild(style);
-
-  // --- 7) Activation onglet (sans toucher aux autres onglets)
-  tab.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-    tab.classList.add("active");
-    document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
-    sec.classList.add("active");
-    renderAll();
-  });
-
-  // --- 8) Checklist activités
-  const allActs = ACTIVITIES_REF.filter(a=>a && a!=="Occupation");
-  const selected = new Set(allActs);
-
-  const elChecks = sec.querySelector("#asChecks");
-  const elPeriod = sec.querySelector("#asPeriod");
-  const elBars   = sec.querySelector("#asBars");
-  const elPie    = sec.querySelector("#asPie");
-  const elTotal  = sec.querySelector("#asTotal");
-  const elAvg    = sec.querySelector("#asAvg");
-
-  function swatch(act){ return (COLORS_REF && COLORS_REF[act]) ? COLORS_REF[act] : "#777"; }
-
-  function renderChecks(){
-    elChecks.innerHTML = "";
-    allActs.forEach(act=>{
-      const id = "as_" + act.replace(/[^\w]+/g,"_");
-      const row = document.createElement("label");
-      row.className = "as-row";
-      row.innerHTML = `
-        <input type="checkbox" id="${id}" ${selected.has(act) ? "checked":""}>
-        <span class="as-swatch" style="background:${swatch(act)}"></span>
-        <span class="as-name">${act}</span>
-      `;
-      row.querySelector("input").addEventListener("change", (e)=>{
-        if(e.target.checked) selected.add(act); else selected.delete(act);
-        renderAll();
-      });
-      elChecks.appendChild(row);
-    });
-  }
-
-  sec.querySelector("#asAll").addEventListener("click", ()=>{
-    selected.clear(); allActs.forEach(a=>selected.add(a));
-    renderChecks(); renderAll();
-  });
-  sec.querySelector("#asNone").addEventListener("click", ()=>{
-    selected.clear();
-    renderChecks(); renderAll();
-  });
-
-  function getWeeks(period){
-    try {
-      const w = weeksForPeriod_REF(period);
-      return Array.isArray(w) ? w : [];
-    } catch(e){ return []; }
-  }
-
-  function compute(period){
-    const wks = getWeeks(period);
-    const totals = {};
-    allActs.forEach(a=>totals[a]=0);
-
-    for(const w of wks){
-      for(const slot of SLOTS_REF){
-        for(const day of DAYS_REF){
-          const a = getCell_REF(w, slot, day);
-          if(!a || a==="Occupation") continue;
-          if(totals[a] !== undefined) totals[a] += 1;
-        }
-      }
-    }
-
-    const filtered = {};
-    for(const a of allActs){
-      if(selected.has(a)) filtered[a] = totals[a];
-    }
-    const totalSelected = Object.values(filtered).reduce((s,v)=>s+v,0);
-    return { wksCount: wks.length, totalsSel: filtered, totalSelected };
-  }
-
-  function renderBars(totalsSel){
-    const entries = Object.entries(totalsSel).filter(([,v])=>v>0);
-    if(entries.length===0){
-      elBars.innerHTML = `<div class="hint">Aucune heure pour les activités cochées.</div>`;
-      return;
-    }
-    entries.sort((a,b)=>b[1]-a[1]);
-    const maxV = Math.max(1, ...entries.map(e=>e[1]));
-
-    const barH = 26, W = 760, H = 40 + entries.length*barH, padL = 160, padR = 20, padT = 20;
-    let svg = `<text x="10" y="16" font-size="12" fill="#8b8b8b">Heures (cases)</text>`;
-    entries.forEach(([act,val], i)=>{
-      const y = padT + i*barH + 10;
-      const w = ((W-padL-padR) * (val/maxV));
-      svg += `
-        <text x="10" y="${y+12}" font-size="12" fill="#eaeaea">${act}</text>
-        <rect x="${padL}" y="${y}" width="${w}" height="16" rx="4" fill="${swatch(act)}"></rect>
-        <text x="${padL+w+8}" y="${y+12}" font-size="12" fill="#8b8b8b">${val}</text>
-      `;
-    });
-    elBars.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${svg}</svg>`;
-  }
-
-  function renderPie(totalsSel, total){
-    const entries = Object.entries(totalsSel).filter(([,v])=>v>0);
-    if(entries.length===0){
-      elPie.innerHTML = `<div class="hint">Aucune heure pour les activités cochées.</div>`;
-      return;
-    }
-    const W=420,H=320,cx=210,cy=140,r=110;
-    function polar(a){ return [cx + r*Math.cos(a), cy + r*Math.sin(a)]; }
-    function arcPath(a0,a1){
-      const [x0,y0]=polar(a0), [x1,y1]=polar(a1);
-      const large = (a1-a0)>Math.PI ? 1 : 0;
-      return `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`;
-    }
-    let a = -Math.PI/2, paths = "";
-    let legend = `<div class="hint">Total sélection : <b style="color:var(--text)">${total}</b> h</div>`;
-    entries.sort((a,b)=>b[1]-a[1]).forEach(([act,val])=>{
-      const frac = val/total;
-      const a1 = a + frac*2*Math.PI;
-      paths += `<path d="${arcPath(a,a1)}" fill="${swatch(act)}"></path>`;
-      legend += `
-        <div class="as-row">
-          <span class="as-swatch" style="background:${swatch(act)}"></span>
-          <span class="as-name">${act}</span>
-          <span class="as-val">${val} (${Math.round(frac*100)}%)</span>
-        </div>`;
-      a = a1;
-    });
-    elPie.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
-        ${paths}
-        <text x="${cx}" y="${H-16}" font-size="12" fill="#8b8b8b" text-anchor="middle">Répartition</text>
-      </svg>
-      ${legend}
-    `;
-  }
-
-  function renderAll(){
-    const period = elPeriod.value;
-    const {wksCount, totalsSel, totalSelected} = compute(period);
-
-    // Diviseur : utilise ton curseur existant (workedInput/workedRange) si présent, sinon nb semaines période
-    const wi = document.getElementById("workedInput");
-    const wr = document.getElementById("workedRange");
-    let div = null;
-    if(wi && wi.value) div = parseInt(wi.value,10);
-    else if(wr && wr.value) div = parseInt(wr.value,10);
-    if(!Number.isFinite(div) || div<=0) div = Math.max(1,wksCount);
-
-    elTotal.textContent = String(totalSelected);
-    elAvg.textContent = (totalSelected / Math.max(1,div)).toFixed(1);
-
-    renderBars(totalsSel);
-    renderPie(totalsSel, Math.max(1,totalSelected));
-  }
-
-  elPeriod.addEventListener("change", renderAll);
-
-  // init
-  renderChecks();
-  renderAll();
-
-})();
-/* ===== END PATCH ===== */
-  
-</script>
-</body>
-</html>
+  const filtered={};
+  advActs.forEach(a=>{ if(advSelected.has(a)) filtered[a]=totals[a]; });
