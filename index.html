@@ -498,24 +498,40 @@ function scheduleStatsRefresh(){
 }
 
 /* =======================
-   NAV (onglets)
+   NAVIGATION ONGLETS (FIX)
 ======================= */
-function activateView(view){
-  document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-  document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
+function showView(viewId){
+  // désactiver tout
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".views > section").forEach(s => s.classList.remove("active"));
 
-  const tab = document.querySelector(`.tab[data-view="${view}"]`);
-  const sec = document.getElementById(`view-${view}`);
-  if(tab) tab.classList.add("active");
-  if(sec) sec.classList.add("active");
+  // activer l’onglet
+  const tab = document.querySelector(`.tab[data-view="${viewId}"]`);
+  if (tab) tab.classList.add("active");
 
-  if(view==="stats") renderStats();
-  if(view==="advstats_act") renderAdvStats();
-  if(view==="prefill"){ renderPrefillGrid(); refreshPrefillWeekList(); }
+  // activer la section
+  const section = document.getElementById("view-" + viewId);
+  if (section) section.classList.add("active");
+
+  // hooks spécifiques
+  if (viewId === "stats" && typeof renderStats === "function") renderStats();
+  if (viewId === "advstats_act" && typeof renderAdvStats === "function") renderAdvStats();
+  if (viewId === "prefill") {
+    if (typeof renderPrefillGrid === "function") renderPrefillGrid();
+    if (typeof refreshPrefillWeekList === "function") refreshPrefillWeekList();
+  }
 }
 
-document.querySelectorAll(".tab").forEach(btn=>{
-  btn.addEventListener("click", ()=>activateView(btn.dataset.view));
+// branchement clics
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    showView(tab.dataset.view);
+  });
+});
+
+// vue par défaut au chargement
+document.addEventListener("DOMContentLoaded", () => {
+  showView("planning");
 });
 
 /* =======================
