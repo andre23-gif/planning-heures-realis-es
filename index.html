@@ -179,14 +179,13 @@
       <div class="card" style="margin-bottom:12px">
         <div class="row">
           <div class="pill">Période :</div>
-          <select id="periodSelect">
-            <option value="school">Année scolaire (S35→S52 puis S1→S39)</option>
-            <option value="t1">Trimestre 1 (S1–S13)</option>
-            <option value="t2">Trimestre 2 (S14–S26)</option>
-            <option value="t3">Trimestre 3 (S27–S39)</option>
-            <option value="t4">Trimestre 4 (S40–S52)</option>
-            <option value="annual">Année civile (S1–S52)</option>
-          </select>
+     <select id="periodSelect">
+  <option value="school">Année scolaire (S36→S52 puis S1→S27)</option>
+  <option value="t1">Trimestre 1 (S36→S48)</option>
+  <option value="t2">Trimestre 2 (S49→S11)</option>
+  <option value="t3">Trimestre 3 (S12→S27)</option>
+  <option value="annual">Année civile (S1→S52)</option>
+</select>
 
           <div class="spacer"></div>
 
@@ -368,22 +367,46 @@ function uniqueOrdered(arr){
 }
 
 /* ========= WEEKS (DEDUP) ========= */
+function uniqueOrdered(arr){
+  const seen = new Set();
+  const out = [];
+  for(const x of arr){
+    if(seen.has(x)) continue;
+    seen.add(x);
+    out.push(x);
+  }
+  return out;
+}
+
+// Année scolaire : S36→S52 puis S1→S27 (été S28→S35 exclu)
 function schoolOrder(){
   const w = [];
-  for(let i=35;i<=52;i++) w.push(i);
-  for(let i=1;i<=39;i++) w.push(i);
-  return uniqueOrdered(w); // ✅ empêche les doublons
+  for(let i=36;i<=52;i++) w.push(i);
+  for(let i=1;i<=27;i++) w.push(i);
+  return uniqueOrdered(w);
 }
+
 const SCHOOL_ORDER = schoolOrder();
 let currentWeek = SCHOOL_ORDER[0];
 
 const PERIODS = {
+  // Année scolaire (hors été)
   school: SCHOOL_ORDER.slice(),
-  annual: Array.from({length:52},(_,i)=>i+1),
-  t1: Array.from({length:13},(_,i)=>i+1),
-  t2: Array.from({length:13},(_,i)=>14+i),
-  t3: Array.from({length:13},(_,i)=>27+i),
-  t4: Array.from({length:13},(_,i)=>40+i)
+
+  // Trimestre 1 : S36 → S48
+  t1: Array.from({length:(48-36+1)}, (_,i)=>36+i),
+
+  // Trimestre 2 : S49 → S52 puis S1 → S11
+  t2: [
+    ...Array.from({length:(52-49+1)}, (_,i)=>49+i),
+    ...Array.from({length:11}, (_,i)=>1+i)
+  ],
+
+  // Trimestre 3 : S12 → S27
+  t3: Array.from({length:(27-12+1)}, (_,i)=>12+i),
+
+  // Année civile (si tu la gardes)
+  annual: Array.from({length:52}, (_,i)=>i+1)
 };
 
 /* ========= TABS ========= */
@@ -664,7 +687,7 @@ function renderStats(){
   const alertPct = objectifs.thresholds.alertPct ?? 110;
 
   // objectifs par activité pour la période
-  const perAct = objectifs.perActivity?.[period] || {};
+const perAct = (objectifs.perActivity[period] ||= {});
 
   // objectif global : manuel si saisi, sinon auto = somme des attendus par activité
   const storedGlobal = Number(objectifs.global?.[period] || 0);
