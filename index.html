@@ -90,7 +90,7 @@
     .barname{width:160px;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .track{flex:1;height:18px;background:var(--surface2);border-radius:6px;overflow:hidden;border:1px solid var(--border)}
     .fill{height:100%}
-    .barval{width:230px;text-align:right;color:var(--dim);font-family:var(--mono);font-size:12px;line-height:1.2}
+    .barval{width:240px;text-align:right;color:var(--dim);font-family:var(--mono);font-size:12px;line-height:1.2}
     .expbox{display:flex;gap:8px;align-items:center}
     .expbox label{font-size:12px;color:var(--dim)}
     .badge{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:900}
@@ -149,14 +149,13 @@
           </label>
 
           <label class="btn secondary" style="cursor:pointer">
-            Importer CSV (une ou plusieurs semaines)
+            Importer CSV (Semaine XX)
             <input id="importCSV" type="file" accept=".csv,text/csv" multiple style="display:none">
           </label>
         </div>
 
         <div class="hint">
-          Import CSV : tu peux sélectionner plusieurs fichiers “Semaine XX…” d’un coup.
-          (Les données sont enregistrées sur l’appareil.)
+          Import CSV : tes fichiers “Semaine 35-Tableau 1.csv” sont au format hebdo (1 fichier = 1 semaine). [1](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)[2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=2974b212-92b6-441f-8e1d-3f1f297dce51&cid=53edf03465ddcc82)
         </div>
 
         <div style="height:12px"></div>
@@ -172,7 +171,7 @@
         <div class="row">
           <div class="pill">Période :</div>
           <select id="periodSelect">
-            <option value="school">Année scolaire (S35→S39)</option>
+            <option value="school">Année scolaire (S35→S52 puis S1→S39)</option>
             <option value="t1">Trimestre 1 (S1–S13)</option>
             <option value="t2">Trimestre 2 (S14–S26)</option>
             <option value="t3">Trimestre 3 (S27–S39)</option>
@@ -216,14 +215,14 @@
         </div>
 
         <div class="hint">
-          1 case remplie = 1 heure. Les alertes se basent sur % réalisé/attendu (si attendu est défini).
+          1 case remplie = 1 heure. Alertes : % réalisé/attendu (si attendu défini). [1](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)
         </div>
       </div>
 
       <div class="statsgrid">
         <div class="card">
           <div style="font-weight:900">Réalisé vs attendu (par activité)</div>
-          <div class="hint">Tu peux renseigner l’attendu (heures) pour la période choisie, ou laisser vide.</div>
+          <div class="hint">Renseigne l’attendu (heures) pour la période choisie, ou laisse vide.</div>
           <div class="bars" id="bars"></div>
         </div>
 
@@ -241,7 +240,7 @@
         <div class="row">
           <div style="font-weight:900">Vacances / semaines non travaillées</div>
           <div class="spacer"></div>
-          <button class="btn.danger btn danger" id="resetVac">Réinitialiser</button>
+          <button class="btn danger" id="resetVac">Réinitialiser</button>
         </div>
         <div class="hint">Clique une semaine pour la barrer (elle sera exclue des statistiques).</div>
         <div style="height:12px"></div>
@@ -285,9 +284,9 @@ const COLORS = {
 /* =======================
    STORAGE
    ======================= */
-const LS_OVR = "ps_overrides_clean_v1";
+const LS_OVR = "ps_overrides_clean_v2";
 const LS_VAC = "ps_vacances_v1";
-const LS_OBJ = "ps_objectifs_clean_v1";
+const LS_OBJ = "ps_objectifs_clean_v2";
 
 let overrides = {};
 let vacances = new Set();
@@ -302,7 +301,7 @@ try { overrides = JSON.parse(localStorage.getItem(LS_OVR) || "{}"); } catch(e) {
 try { vacances = new Set(JSON.parse(localStorage.getItem(LS_VAC) || "[]")); } catch(e) { vacances = new Set(); }
 try {
   const raw = JSON.parse(localStorage.getItem(LS_OBJ) || "null");
-  if(raw && raw.global && raw.perActivity) objectifs = raw;
+  if(raw && raw.global && raw.perActivity && raw.thresholds) objectifs = raw;
 } catch(e) {}
 
 function saveObjectifs(){ localStorage.setItem(LS_OBJ, JSON.stringify(objectifs)); }
@@ -316,7 +315,6 @@ function toast(msg){
   t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"), 1600);
 }
-
 function k(week, slot, day){ return `S${week}|${slot}|${day}`; }
 function getCell(week, slot, day){
   const key = k(week,slot,day);
@@ -328,37 +326,48 @@ function setCell(week, slot, day, val){
   localStorage.setItem(LS_OVR, JSON.stringify(overrides));
 }
 
+// corrige les textes mal encodés vus dans tes CSV (ex: "PrĂ©paration") [2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=2974b212-92b6-441f-8e1d-3f1f297dce51&cid=53edf03465ddcc82)
 function fixText(s){
-  // corrige les cas typiques vus dans tes CSV (PrĂ©paration / PrÃ©paration) [1](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=2974b212-92b6-441f-8e1d-3f1f297dce51&cid=53edf03465ddcc82)
   return (s || "")
     .replaceAll("PrĂ©paration", "Préparation")
     .replaceAll("PrÃ©paration", "Préparation")
-    .replaceAll("CrĂ©neau", "Créneau")
-    .replaceAll("CrÃ©neau", "Créneau")
     .replaceAll("RĂ©union", "Réunion")
-    .replaceAll("RÃ©union", "Réunion");
+    .replaceAll("RÃ©union", "Réunion")
+    .replaceAll("CrĂ©neau", "Créneau")
+    .replaceAll("CrÃ©neau", "Créneau");
 }
-function normalizeSpaces(s){ return (s||"").trim().replace(/\s+/g," "); }
+function normSpace(s){ return (s||"").trim().replace(/\s+/g," "); }
+
+function uniqueOrdered(arr){
+  const seen = new Set();
+  const out = [];
+  for(const x of arr){
+    if(seen.has(x)) continue;
+    seen.add(x);
+    out.push(x);
+  }
+  return out;
+}
 
 /* =======================
-   WEEKS (school order)
+   WEEKS (NO DUPLICATES)
    ======================= */
 function schoolOrder(){
   const w = [];
   for(let i=35;i<=52;i++) w.push(i);
   for(let i=1;i<=39;i++) w.push(i);
-  return w;
+  return uniqueOrdered(w);
 }
-const SCHOOL_ORDER = schoolOrder();
+const SCHOOL_ORDER = schoolOrder();   // ✅ plus de doublons (corrige ton problème)
 let currentWeek = SCHOOL_ORDER[0];
 
 const PERIODS = {
-  school: SCHOOL_ORDER.slice(),                       // S35→S52 puis S1→S39
-  annual: Array.from({length:52},(_,i)=>i+1),         // S1→S52
-  t1: Array.from({length:13},(_,i)=>i+1),             // S1→S13
-  t2: Array.from({length:13},(_,i)=>14+i),            // S14→S26
-  t3: Array.from({length:13},(_,i)=>27+i),            // S27→S39
-  t4: Array.from({length:13},(_,i)=>40+i)             // S40→S52
+  school: SCHOOL_ORDER.slice(),
+  annual: Array.from({length:52},(_,i)=>i+1),
+  t1: Array.from({length:13},(_,i)=>i+1),
+  t2: Array.from({length:13},(_,i)=>14+i),
+  t3: Array.from({length:13},(_,i)=>27+i),
+  t4: Array.from({length:13},(_,i)=>40+i)
 };
 
 /* =======================
@@ -381,12 +390,12 @@ document.querySelectorAll(".tab").forEach(btn=>{
 const weekSelect = document.getElementById("weekSelect");
 function buildWeekSelect(){
   weekSelect.innerHTML = "";
-  SCHOOL_ORDER.forEach(w=>{
+  for(const w of SCHOOL_ORDER){
     const opt = document.createElement("option");
     opt.value = w;
     opt.textContent = "Semaine " + w;
     weekSelect.appendChild(opt);
-  });
+  }
   weekSelect.value = currentWeek;
 }
 weekSelect.addEventListener("change", ()=>{
@@ -416,7 +425,7 @@ function openModal(week, slot, day){
 
   const cur = getCell(week, slot, day);
   choices.innerHTML = "";
-  ACTIVITIES.forEach(a=>{
+  for(const a of ACTIVITIES){
     const b = document.createElement("button");
     b.className = "choice" + (a===cur ? " sel":"");
     b.style.background = COLORS[a] || "#444";
@@ -427,7 +436,7 @@ function openModal(week, slot, day){
       b.classList.add("sel");
     });
     choices.appendChild(b);
-  });
+  }
   overlay.classList.add("open");
 }
 function closeModal(){ overlay.classList.remove("open"); modalCtx = null; }
@@ -459,25 +468,25 @@ function renderWeek(){
   th0.textContent = "Créneau";
   trh.appendChild(th0);
 
-  DAYS.forEach(d=>{
+  for(const d of DAYS){
     const th = document.createElement("th");
     th.textContent = d.slice(0,3).toUpperCase();
     trh.appendChild(th);
-  });
+  }
 
   thead.appendChild(trh);
   table.appendChild(thead);
 
   const tbody = document.createElement("tbody");
 
-  SLOTS.forEach(slot=>{
+  for(const slot of SLOTS){
     const tr = document.createElement("tr");
 
     const td0 = document.createElement("td");
     td0.textContent = slot;
     tr.appendChild(td0);
 
-    DAYS.forEach(day=>{
+    for(const day of DAYS){
       const td = document.createElement("td");
       const act = getCell(currentWeek, slot, day);
 
@@ -490,10 +499,10 @@ function renderWeek(){
 
       td.appendChild(b);
       tr.appendChild(td);
-    });
+    }
 
     tbody.appendChild(tr);
-  });
+  }
 
   table.appendChild(tbody);
 }
@@ -504,7 +513,7 @@ function renderWeek(){
 function renderVac(){
   const wrap = document.getElementById("vacWeeks");
   wrap.innerHTML = "";
-  SCHOOL_ORDER.forEach(w=>{
+  for(const w of SCHOOL_ORDER){
     const chip = document.createElement("div");
     chip.className = "week" + (vacances.has(w) ? " vac" : "");
     chip.textContent = "S" + w;
@@ -514,7 +523,7 @@ function renderVac(){
       renderVac(); renderStats();
     });
     wrap.appendChild(chip);
-  });
+  }
 }
 document.getElementById("resetVac").addEventListener("click", ()=>{
   vacances = new Set();
@@ -523,7 +532,7 @@ document.getElementById("resetVac").addEventListener("click", ()=>{
 });
 
 /* =======================
-   STATS CONTROLS (weeks worked = slider + number sync)
+   STATS CONTROLS (sync)
    ======================= */
 const workedRange = document.getElementById("workedRange");
 const workedInput = document.getElementById("workedInput");
@@ -543,7 +552,6 @@ function setWeeksWorked(v){
   workedLabel.textContent = String(val);
   renderStats();
 }
-
 workedRange.addEventListener("input", ()=>setWeeksWorked(workedRange.value));
 workedInput.addEventListener("input", ()=>{
   if(workedInput.value==="") return;
@@ -578,7 +586,7 @@ periodSelect.addEventListener("change", renderStats);
    STATS CORE
    ======================= */
 function activeWeeks(period){
-  const base = (PERIODS[period] || PERIODS.school).slice();
+  const base = (PERIODS[period] || PERIODS.school);
   const max = clampWeeks(workedInput.value || workedRange.value);
 
   const arr = [];
@@ -589,10 +597,9 @@ function activeWeeks(period){
   }
   return arr;
 }
-
 function countActivities(weeks){
   const counts = {};
-  ACTIVITIES.forEach(a=>{ if(a!=="Occupation") counts[a]=0; });
+  for(const a of ACTIVITIES) if(a!=="Occupation") counts[a]=0;
   for(const w of weeks){
     for(const slot of SLOTS){
       for(const day of DAYS){
@@ -773,7 +780,7 @@ function renderStats(){
 }
 
 /* =======================
-   EXPORT / IMPORT JSON
+   JSON EXPORT / IMPORT
    ======================= */
 document.getElementById("btnExportJson").addEventListener("click", ()=>{
   const payload = {
@@ -818,10 +825,9 @@ document.getElementById("importFile").addEventListener("change", async (e)=>{
 });
 
 /* =======================
-   IMPORT CSV (multi-files)
-   Supports:
-   - Weekly table: ;Lundi;... then slot rows (your files) [1](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=2974b212-92b6-441f-8e1d-3f1f297dce51&cid=53edf03465ddcc82)[1](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=2974b212-92b6-441f-8e1d-3f1f297dce51&cid=53edf03465ddcc82)
-   - Detailed table: N° Semaine + Créneau + days (xlsx “Données détaillées”) [2](https://stackoverflow.com/questions/66639894/accessing-older-versions-of-files-on-github)
+   CSV IMPORT (your weekly files)
+   Weekly format example: ;Lundi;... then slot rows (S35 file) [1](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)
+   Also fixes mojibake seen in S28 (PrĂ©paration) [2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=2974b212-92b6-441f-8e1d-3f1f297dce51&cid=53edf03465ddcc82)
    ======================= */
 function detectDelimiter(line){
   const semis = (line.match(/;/g)||[]).length;
@@ -859,90 +865,33 @@ function weekFromFilename(name){
   }
   return null;
 }
-function norm(s){
-  return (s||"").toString().trim().toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
-    .replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim();
-}
-function findCol(header, cands){
-  const H = header.map(norm);
-  for(const c of cands){
-    const cc = norm(c);
-    let idx = H.indexOf(cc);
-    if(idx>=0) return idx;
-    idx = H.findIndex(h=>h.includes(cc));
-    if(idx>=0) return idx;
-  }
-  return -1;
-}
-function importCSVText(text, filename){
+
+function importWeeklyCSV(text, filename){
   const {header, rows} = parseCSV(text);
-  const headerLow = header.map(h => (h||"").toLowerCase().trim());
+  const week = weekFromFilename(filename);
+  if(!week){ toast("CSV : numéro de semaine introuvable"); return; }
 
-  const looksWeekly =
-    headerLow.length >= 8 &&
-    headerLow.includes("lundi") &&
-    headerLow.includes("mardi") &&
-    headerLow.includes("mercredi") &&
-    headerLow.includes("jeudi") &&
-    headerLow.includes("vendredi");
-
-  // Format weekly (your files)
-  if(looksWeekly){
-    const week = weekFromFilename(filename);
-    if(!week){ toast("CSV : impossible de trouver le n° de semaine"); return; }
-
-    const days = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
-    let count = 0;
-
-    for(const r of rows){
-      const slot = normalizeSpaces(fixText(r[0]||""));
-      if(!slot) continue;
-      for(let i=0;i<7;i++){
-        let v = normalizeSpaces(fixText(r[i+1]||""));
-        if(v==="" || v.toLowerCase()==="nan") v="Occupation";
-        setCell(week, slot, days[i], v);
-        count++;
-      }
-    }
-
-    toast(`Import CSV OK – S${week} (${count} cellules)`);
+  // header like ["", "Lundi", "Mardi", ...]
+  const h = header.map(x=>normSpace(fixText(x)).toLowerCase());
+  const looksWeekly = h.includes("lundi") && h.includes("mardi") && h.includes("mercredi") && h.includes("jeudi") && h.includes("vendredi");
+  if(!looksWeekly){
+    toast("CSV non reconnu (pas un tableau hebdo)");
     return;
   }
-
-  // Format detailed (sheet "Données détaillées")
-  const iWeek = findCol(header, ["n semaine","no semaine","numero semaine","n° semaine","semaine"]);
-  const iSlot = findCol(header, ["creneau","créneau","slot"]);
-  const iMon  = findCol(header, ["lundi","lun"]);
-  const iTue  = findCol(header, ["mardi","mar"]);
-  const iWed  = findCol(header, ["mercredi","mer"]);
-  const iThu  = findCol(header, ["jeudi","jeu"]);
-  const iFri  = findCol(header, ["vendredi","ven"]);
-  const iSat  = findCol(header, ["samedi","sam"]);
-  const iSun  = findCol(header, ["dimanche","dim"]);
-
-  if([iWeek,iSlot,iMon,iTue,iWed,iThu,iFri,iSat,iSun].some(i=>i<0)){
-    toast("CSV non reconnu (colonnes manquantes)");
-    return;
-  }
-
-  const days = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
-  const idxs = [iMon,iTue,iWed,iThu,iFri,iSat,iSun];
 
   let count=0;
   for(const r of rows){
-    const w = parseInt((r[iWeek]||"").trim(),10);
-    const slot = normalizeSpaces(fixText(r[iSlot]||""));
-    if(!w || !slot) continue;
+    const slot = normSpace(fixText(r[0]||""));
+    if(!slot) continue;
 
     for(let i=0;i<7;i++){
-      let v = normalizeSpaces(fixText(r[idxs[i]]||""));
+      let v = normSpace(fixText(r[i+1]||""));
       if(v==="" || v.toLowerCase()==="nan") v="Occupation";
-      setCell(w, slot, days[i], v);
+      setCell(week, slot, DAYS[i], v);
       count++;
     }
   }
-  toast(`Import CSV OK (${count} cellules)`);
+  toast(`Import CSV OK – S${week} (${count} cellules)`);
 }
 
 document.getElementById("importCSV").addEventListener("change", async (e)=>{
@@ -951,7 +900,7 @@ document.getElementById("importCSV").addEventListener("change", async (e)=>{
 
   for(const f of files){
     const text = await f.text();
-    importCSVText(text, f.name);
+    importWeeklyCSV(text, f.name);
   }
   localStorage.setItem(LS_OVR, JSON.stringify(overrides));
   renderWeek(); renderVac(); renderStats();
@@ -959,7 +908,7 @@ document.getElementById("importCSV").addEventListener("change", async (e)=>{
 });
 
 /* =======================
-   EXPORT STATS CSV
+   STATS CSV EXPORT
    ======================= */
 document.getElementById("btnExportCsv").addEventListener("click", ()=>{
   const period = periodSelect.value;
