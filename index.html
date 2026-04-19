@@ -513,6 +513,7 @@ function activateView(view){
   if(view==="advstats_act") renderAdvStats();
   if(view==="prefill"){ renderPrefillGrid(); refreshPrefillWeekList(); }
 }
+
 document.querySelectorAll(".tab").forEach(btn=>{
   btn.addEventListener("click", ()=>activateView(btn.dataset.view));
 });
