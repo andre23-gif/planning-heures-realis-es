@@ -887,18 +887,41 @@ renderWeek();
 renderVac();
 setWeeksWorked(workedRange.value);
 renderStats();
- /* ===== BEGIN ONGLET "FAMILLES+" (sélection famille + empilé + totaux trimestre + camembert) ===== */
+
+  /* ===== BEGIN STATISTIQUES AVANCÉES (onglet + checklist + familles éditables + graphiques) ===== */
 (function(){
-  // ---- Dépendances attendues dans ton app
-  const required = ["SLOTS","DAYS","getCell","weeksForPeriod"];
-  for (const k of required) {
-    if (!(k in window)) { console.warn("Familles+: dépendance manquante:", k); return; }
+  // --- Nettoyage : supprime anciens onglets/sections Familles si présents
+  const oldTabs = [
+    '.tabs [data-view="familles"]',
+    '.tabs [data-view="famillesplus"]',
+    '.tabs [data-view="famillesplusv2"]'
+  ];
+  oldTabs.forEach(sel => {
+    const t = document.querySelector(sel);
+    if(t) t.remove();
+  });
+  ["view-familles","view-famillesplus","view-famillesplusv2"].forEach(id=>{
+    const s = document.getElementById(id);
+    if(s) s.remove();
+  });
+
+  // --- Récupère les références même si ce sont des const globaux
+  const SLOTS_REF = (typeof SLOTS !== "undefined") ? SLOTS : null;
+  const DAYS_REF  = (typeof DAYS  !== "undefined") ? DAYS  : null;
+  const getCell_REF = (typeof getCell === "function") ? getCell : null;
+  const weeksForPeriod_REF = (typeof weeksForPeriod === "function") ? weeksForPeriod : null;
+  const ACTIVITIES_REF = (typeof ACTIVITIES !== "undefined") ? ACTIVITIES : null;
+
+  if(!SLOTS_REF || !DAYS_REF || !getCell_REF || !weeksForPeriod_REF || !ACTIVITIES_REF){
+    console.warn("Statistiques avancées : dépendances manquantes (SLOTS/DAYS/getCell/weeksForPeriod/ACTIVITIES).");
+    return;
   }
 
-  /* -----------------------------
-     1) Familles (modifiable)
-     ----------------------------- */
-  const FAMILLES = {
+  // --- Stockage local (définitions + inclusions)
+  const LS_ADV = "ps_stats_avancees_v1";
+
+  // --- Définitions par défaut (tu peux les modifier dans l'UI)
+  const DEFAULT_FAMILIES = {
     "Gestion": ["Gestion", "Coordination", "Instances"],
     "Pédagogie": ["Cours", "Préparation", "CDC/suivi", "Parcours Avenir"],
     "Projets": ["Baroque", "Pépinières", "Numérique"],
@@ -914,46 +937,60 @@ renderStats();
     "Autres": "#ff9ff3"
   };
 
-  const FAMILY_ORDER = Object.keys(FAMILLES);
+  function deepClone(obj){ return JSON.parse(JSON.stringify(obj)); }
 
-  /* -----------------------------
-     2) Injecte CSS (léger)
-     ----------------------------- */
+  // Charge config ou crée config
+  let ADV = null;
+  try { ADV = JSON.parse(localStorage.getItem(LS_ADV) || "null"); } catch(e) {}
+
+  if(!ADV || !ADV.defs || !ADV.include){
+    ADV = {
+      defs: deepClone(DEFAULT_FAMILIES),   // famille -> [activités...]
+      include: Object.keys(DEFAULT_FAMILIES).reduce((acc,k)=>{ acc[k]=true; return acc; }, {}),
+      view: "stack_week",
+      period: "school"
+    };
+    localStorage.setItem(LS_ADV, JSON.stringify(ADV));
+  }
+
+  // --- CSS léger
   const style = document.createElement("style");
   style.textContent = `
-    #view-famillesplus .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-    #view-famillesplus .leg{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px}
-    #view-famillesplus .sw{width:12px;height:12px;border-radius:4px}
-    #view-famillesplus .chartbox{border:1px solid var(--border);border-radius:14px;overflow:auto;background:rgba(255,255,255,.02)}
-    #view-famillesplus .charttitle{font-weight:900;margin-bottom:8px}
-    #view-famillesplus .subhint{color:var(--dim);font-size:12px;margin-top:6px}
-    #view-famillesplus .grid2{display:grid;grid-template-columns:1fr;gap:12px}
-    @media(min-width:900px){#view-famillesplus .grid2{grid-template-columns:1.2fr .8fr}}
-    #view-famillesplus .kpi{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    #view-advstats .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    #view-advstats .leg{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px}
+    #view-advstats .sw{width:12px;height:12px;border-radius:4px}
+    #view-advstats .grid2{display:grid;grid-template-columns:1fr;gap:12px}
+    @media(min-width:900px){#view-advstats .grid2{grid-template-columns:1fr 1fr}}
+    #view-advstats .panel{border:1px solid var(--border);border-radius:14px;padding:12px;background:rgba(255,255,255,.02)}
+    #view-advstats .panel h4{margin:0 0 8px 0;font-size:14px}
+    #view-advstats .chk{display:flex;gap:10px;align-items:center;color:var(--text);font-size:13px;margin:6px 0}
+    #view-advstats .chk small{color:var(--dim)}
+    #view-advstats .acts{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
+    #view-advstats .acts .chk{margin:0}
+    #view-advstats .chartbox{border:1px solid var(--border);border-radius:14px;overflow:auto;background:rgba(255,255,255,.02)}
+    #view-advstats .charttitle{font-weight:900;margin-bottom:8px}
+    #view-advstats .subhint{color:var(--dim);font-size:12px;margin-top:6px}
+    #view-advstats .kpi{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   `;
   document.head.appendChild(style);
 
-  /* -----------------------------
-     3) Ajoute l’onglet
-     ----------------------------- */
+  // --- Onglet
   const tabs = document.querySelector(".tabs");
   const tab = document.createElement("button");
   tab.className = "tab";
-  tab.dataset.view = "famillesplus";
-  tab.textContent = "📈 Familles+";
+  tab.dataset.view = "advstats";
+  tab.textContent = "📊 Statistiques avancées";
   tabs.appendChild(tab);
 
-  /* -----------------------------
-     4) Ajoute la page (sans export CSV)
-     ----------------------------- */
+  // --- Section
   const views = document.querySelector(".views");
   const sec = document.createElement("section");
-  sec.id = "view-famillesplus";
+  sec.id = "view-advstats";
   sec.innerHTML = `
     <div class="card">
       <div class="row">
         <div class="pill">Période :</div>
-        <select id="fpPeriod">
+        <select id="advPeriod">
           <option value="school">Année scolaire</option>
           <option value="t1">Trimestre 1</option>
           <option value="t2">Trimestre 2</option>
@@ -962,50 +999,50 @@ renderStats();
         </select>
 
         <div class="pill">Vue :</div>
-        <select id="fpView">
-          <option value="stack_families">Empilé familles / semaine</option>
-          <option value="family_week">Famille sélectionnée / semaine</option>
-          <option value="family_stack_acts">Famille sélectionnée empilé / activités</option>
+        <select id="advView">
+          <option value="stack_week">Empilé par semaine</option>
           <option value="quarter_totals">Totaux par trimestre</option>
+          <option value="pie_year">Camembert annuel</option>
         </select>
 
-        <div class="pill">Famille :</div>
-        <select id="fpFamily"></select>
+        <div class="spacer"></div>
+        <button class="btn secondary" id="advReset">Réinitialiser (familles)</button>
       </div>
 
-      <div class="legend" id="fpLegend"></div>
-
       <div class="kpi">
-        <div class="pill">Total période : <b id="fpTotal" style="color:var(--text)">0</b> h</div>
-        <div class="pill">Moyenne / semaine (période) : <b id="fpAvg" style="color:var(--text)">0</b> h</div>
+        <div class="pill">Total période : <b id="advTotal" style="color:var(--text)">0</b> h</div>
+        <div class="pill">Moyenne / semaine : <b id="advAvg" style="color:var(--text)">0</b> h</div>
       </div>
 
       <div style="height:12px"></div>
 
       <div class="grid2">
-        <div>
-          <div class="charttitle" id="fpTitle">Graphique</div>
-          <div class="chartbox">
-            <div id="fpChart" style="min-height:320px;padding:10px"></div>
-          </div>
-          <div class="subhint" id="fpHint"></div>
+        <div class="panel">
+          <h4>✅ Statistiques à prendre en compte</h4>
+          <div class="subhint">Coche les familles que tu veux afficher dans les graphiques.</div>
+          <div id="advInclude"></div>
+
+          <div style="height:10px"></div>
+          <h4>🛠️ Définition des familles</h4>
+          <div class="subhint">Tu peux changer la composition : coche/décoche les activités dans chaque famille.</div>
+          <div id="advDefs"></div>
         </div>
 
         <div>
-          <div class="charttitle" id="fpPieTitle">Camembert</div>
+          <div class="charttitle" id="advTitle">Graphique</div>
           <div class="chartbox">
-            <div id="fpPie" style="min-height:320px;padding:10px"></div>
+            <div id="advChart" style="min-height:340px;padding:10px"></div>
           </div>
-          <div class="subhint" id="fpPieHint"></div>
+          <div class="subhint" id="advHint"></div>
+
+          <div class="legend" id="advLegend"></div>
         </div>
       </div>
     </div>
   `;
   views.appendChild(sec);
 
-  /* -----------------------------
-     5) Activation onglet
-     ----------------------------- */
+  // --- Activation onglet
   tab.addEventListener("click", ()=>{
     document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
     tab.classList.add("active");
@@ -1014,91 +1051,172 @@ renderStats();
     renderAll();
   });
 
-  /* -----------------------------
-     6) Réfs UI
-     ----------------------------- */
-  const elPeriod = sec.querySelector("#fpPeriod");
-  const elView   = sec.querySelector("#fpView");
-  const elFamily = sec.querySelector("#fpFamily");
-  const elLegend = sec.querySelector("#fpLegend");
-  const elChart  = sec.querySelector("#fpChart");
-  const elTitle  = sec.querySelector("#fpTitle");
-  const elHint   = sec.querySelector("#fpHint");
-  const elPie    = sec.querySelector("#fpPie");
-  const elPieTitle = sec.querySelector("#fpPieTitle");
-  const elPieHint  = sec.querySelector("#fpPieHint");
-  const elTotal  = sec.querySelector("#fpTotal");
-  const elAvg    = sec.querySelector("#fpAvg");
+  // --- UI refs
+  const elPeriod = sec.querySelector("#advPeriod");
+  const elView   = sec.querySelector("#advView");
+  const elInclude= sec.querySelector("#advInclude");
+  const elDefs   = sec.querySelector("#advDefs");
+  const elChart  = sec.querySelector("#advChart");
+  const elTitle  = sec.querySelector("#advTitle");
+  const elHint   = sec.querySelector("#advHint");
+  const elLegend = sec.querySelector("#advLegend");
+  const elTotal  = sec.querySelector("#advTotal");
+  const elAvg    = sec.querySelector("#advAvg");
+  const btnReset = sec.querySelector("#advReset");
 
-  FAMILY_ORDER.forEach(f=>{
-    const o=document.createElement("option");
-    o.value=f; o.textContent=f;
-    elFamily.appendChild(o);
-  });
+  // Init selects
+  elPeriod.value = ADV.period || "school";
+  elView.value   = ADV.view || "stack_week";
 
-  /* -----------------------------
-     7) Données : helpers
-     ----------------------------- */
-  function getWeeks(period){ return window.weeksForPeriod(period); }
+  function save(){
+    ADV.period = elPeriod.value;
+    ADV.view = elView.value;
+    localStorage.setItem(LS_ADV, JSON.stringify(ADV));
+  }
 
+  // Liste d'activités sans Occupation
+  const ALL_ACTS = ACTIVITIES_REF.filter(a=>a && a!=="Occupation");
+
+  function families(){
+    return Object.keys(ADV.defs);
+  }
+
+  function includedFamilies(){
+    return families().filter(f=>ADV.include[f]);
+  }
+
+  function colorForFamily(f){
+    return FAMILY_COLORS[f] || "#777";
+  }
+
+  // --- Render checklists
+  function renderInclude(){
+    elInclude.innerHTML = "";
+    families().forEach(f=>{
+      const id = "inc_" + f.replace(/\s+/g,"_");
+      const row = document.createElement("div");
+      row.className = "chk";
+      row.innerHTML = `
+        <input type="checkbox" id="${id}" ${ADV.include[f] ? "checked":""}>
+        <label for="${id}"><b>${f}</b> <small>(couleur)</small></label>
+        <span class="sw" style="background:${colorForFamily(f)};margin-left:auto"></span>
+      `;
+      row.querySelector("input").addEventListener("change", (e)=>{
+        ADV.include[f] = e.target.checked;
+        localStorage.setItem(LS_ADV, JSON.stringify(ADV));
+        renderAll();
+      });
+      elInclude.appendChild(row);
+    });
+  }
+
+  function renderDefs(){
+    elDefs.innerHTML = "";
+    families().forEach(f=>{
+      const box = document.createElement("div");
+      box.style.margin = "10px 0";
+      box.innerHTML = `<div style="display:flex;align-items:center;gap:10px">
+        <div class="sw" style="background:${colorForFamily(f)}"></div>
+        <b>${f}</b>
+      </div>`;
+
+      const grid = document.createElement("div");
+      grid.className = "acts";
+
+      const set = new Set(ADV.defs[f] || []);
+      ALL_ACTS.forEach(a=>{
+        const id = `def_${f}_${a}`.replace(/[^\w]+/g,"_");
+        const item = document.createElement("div");
+        item.className = "chk";
+        item.innerHTML = `
+          <input type="checkbox" id="${id}" ${set.has(a) ? "checked":""}>
+          <label for="${id}">${a}</label>
+        `;
+        item.querySelector("input").addEventListener("change", (e)=>{
+          const s = new Set(ADV.defs[f] || []);
+          if(e.target.checked) s.add(a); else s.delete(a);
+          ADV.defs[f] = Array.from(s);
+          localStorage.setItem(LS_ADV, JSON.stringify(ADV));
+          renderAll();
+        });
+        grid.appendChild(item);
+      });
+
+      box.appendChild(grid);
+      elDefs.appendChild(box);
+    });
+  }
+
+  function renderLegend(){
+    const inc = includedFamilies();
+    elLegend.innerHTML = inc.map(f=>`
+      <div class="leg"><span class="sw" style="background:${colorForFamily(f)}"></span>${f}</div>
+    `).join("");
+  }
+
+  // --- Data: count per family for one week
   function familyForActivity(a){
-    for(const fam of FAMILY_ORDER){
-      if(FAMILLES[fam].includes(a)) return fam;
+    for(const f of families()){
+      const list = ADV.defs[f] || [];
+      if(list.includes(a)) return f;
     }
     return null;
   }
 
-  function computeWeeklyFamilies(period){
-    const weeks = getWeeks(period);
-    return weeks.map(w=>{
-      const fam = {};
-      FAMILY_ORDER.forEach(f=>fam[f]=0);
+  function weeks(period){
+    return weeksForPeriod_REF(period);
+  }
 
-      for(const slot of window.SLOTS){
-        for(const day of window.DAYS){
-          const a = window.getCell(w, slot, day);
+  function computeWeekly(period){
+    const ws = weeks(period);
+    const inc = new Set(includedFamilies());
+
+    return ws.map(w=>{
+      const fam = {};
+      includedFamilies().forEach(f=>fam[f]=0);
+
+      for(const slot of SLOTS_REF){
+        for(const day of DAYS_REF){
+          const a = getCell_REF(w, slot, day);
           if(!a || a==="Occupation") continue;
           const f = familyForActivity(a);
-          if(f) fam[f] += 1;
+          if(f && inc.has(f)) fam[f] += 1;
         }
       }
       return {week:w, fam};
     });
   }
 
-  function computeWeeklyFamilyActivities(period, famille){
-    const acts = FAMILLES[famille] || [];
-    const weeks = getWeeks(period);
-
-    return weeks.map(w=>{
-      const per = {};
-      acts.forEach(a=>per[a]=0);
-
-      for(const slot of window.SLOTS){
-        for(const day of window.DAYS){
-          const a = window.getCell(w, slot, day);
-          if(!a || a==="Occupation") continue;
-          if(per[a] !== undefined) per[a] += 1;
-        }
-      }
-      return {week:w, per};
-    });
-  }
-
   function sumObj(obj){ return Object.values(obj).reduce((s,v)=>s+(v||0),0); }
 
-  function sumFamiliesFromWeekly(weekly){
+  function computeTotals(weekly){
     const tot = {};
-    FAMILY_ORDER.forEach(f=>tot[f]=0);
-    weekly.forEach(it=>FAMILY_ORDER.forEach(f=>tot[f]+=it.fam[f]||0));
+    includedFamilies().forEach(f=>tot[f]=0);
+    weekly.forEach(it=>includedFamilies().forEach(f=>tot[f]+=it.fam[f]||0));
     return tot;
   }
 
-  /* -----------------------------
-     8) SVG : empilé familles / semaine
-     ----------------------------- */
-  function svgStackedWeeklyFamilies(weekly){
+  // --- KPI
+  function renderKPI(period){
+    const wk = computeWeekly(period);
+    const tot = computeTotals(wk);
+    const total = sumObj(tot);
+    const nb = Math.max(1, wk.length);
+    elTotal.textContent = String(total);
+    elAvg.textContent = (total/nb).toFixed(1);
+  }
+
+  // --- SVG: stacked weekly
+  function svgStackedWeekly(weekly){
+    const inc = includedFamilies();
     const n = weekly.length;
+
+    if(inc.length === 0){
+      elChart.innerHTML = `<div class="hint">Aucune famille sélectionnée. Coche au moins une famille.</div>`;
+      elHint.textContent = "";
+      return;
+    }
+
     const barW=18, gap=6, padL=40, padR=10, padT=20, padB=30;
     const W = Math.max(720, padL+padR+n*(barW+gap));
     const H = 320;
@@ -1109,12 +1227,12 @@ renderStats();
       const x = padL + i*(barW+gap);
       let y = H - padB;
 
-      FAMILY_ORDER.forEach(f=>{
+      inc.forEach(f=>{
         const v = it.fam[f]||0;
         if(v<=0) return;
         const h = (v/maxWeek)*(H-padT-padB);
         y -= h;
-        bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${FAMILY_COLORS[f]||"#777"}"></rect>`;
+        bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${colorForFamily(f)}"></rect>`;
       });
 
       const show = n<=18 ? true : (i%2===0);
@@ -1129,90 +1247,20 @@ renderStats();
       <text x="${padL-8}" y="${padT+8}" font-size="10" fill="#8b8b8b" text-anchor="end">${maxWeek}</text>
       <text x="${padL-8}" y="${H-padB+4}" font-size="10" fill="#8b8b8b" text-anchor="end">0</text>
     `;
+
     elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${axis}${bars}</svg>`;
     elHint.textContent = `Empilé par semaine (max semaine = ${maxWeek} h).`;
   }
 
-  /* -----------------------------
-     9) SVG : famille sélectionnée / semaine (barres simples)
-     ----------------------------- */
-  function svgFamilyWeeklyBars(weeklyFam){
-    const n = weeklyFam.length;
-    const barW=18, gap=6, padL=40, padR=10, padT=20, padB=30;
-    const W = Math.max(720, padL+padR+n*(barW+gap));
-    const H = 320;
-    const maxWeek = Math.max(1, ...weeklyFam.map(it=>it.hours));
+  // --- SVG: quarter totals (T1/T2/T3/Bonus/Total)
+  function svgQuarterTotals(){
+    const inc = includedFamilies();
+    if(inc.length === 0){
+      elChart.innerHTML = `<div class="hint">Aucune famille sélectionnée. Coche au moins une famille.</div>`;
+      elHint.textContent = "";
+      return;
+    }
 
-    let bars="";
-    weeklyFam.forEach((it,i)=>{
-      const x = padL + i*(barW+gap);
-      const h = (it.hours/maxWeek)*(H-padT-padB);
-      const y = H - padB - h;
-      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="#c8f53a"></rect>`;
-      const show = n<=18 ? true : (i%2===0);
-      if(show){
-        bars += `<text x="${x+barW/2}" y="${H-10}" font-size="10" fill="#8b8b8b" text-anchor="middle">S${it.week}</text>`;
-      }
-    });
-
-    const axis = `
-      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <text x="${padL-8}" y="${padT+8}" font-size="10" fill="#8b8b8b" text-anchor="end">${maxWeek}</text>
-      <text x="${padL-8}" y="${H-padB+4}" font-size="10" fill="#8b8b8b" text-anchor="end">0</text>
-    `;
-    elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${axis}${bars}</svg>`;
-    elHint.textContent = `Famille sélectionnée — max semaine = ${maxWeek} h.`;
-  }
-
-  /* -----------------------------
-     10) SVG : famille sélectionnée empilé / activités
-     ----------------------------- */
-  function svgStackedWeeklyActivities(weeklyActs, famille){
-    const acts = FAMILLES[famille] || [];
-    const palette = ["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"];
-    const colors = {};
-    acts.forEach((a,i)=>colors[a]=palette[i%palette.length]);
-
-    const n = weeklyActs.length;
-    const barW=18, gap=6, padL=40, padR=10, padT=20, padB=30;
-    const W = Math.max(720, padL+padR+n*(barW+gap));
-    const H = 320;
-    const maxWeek = Math.max(1, ...weeklyActs.map(it=>sumObj(it.per)));
-
-    let bars="";
-    weeklyActs.forEach((it,i)=>{
-      const x = padL + i*(barW+gap);
-      let y = H - padB;
-
-      acts.forEach(a=>{
-        const v = it.per[a]||0;
-        if(v<=0) return;
-        const h = (v/maxWeek)*(H-padT-padB);
-        y -= h;
-        bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${colors[a]}"></rect>`;
-      });
-
-      const show = n<=18 ? true : (i%2===0);
-      if(show){
-        bars += `<text x="${x+barW/2}" y="${H-10}" font-size="10" fill="#8b8b8b" text-anchor="middle">S${it.week}</text>`;
-      }
-    });
-
-    const axis = `
-      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <text x="${padL-8}" y="${padT+8}" font-size="10" fill="#8b8b8b" text-anchor="end">${maxWeek}</text>
-      <text x="${padL-8}" y="${H-padB+4}" font-size="10" fill="#8b8b8b" text-anchor="end">0</text>
-    `;
-    elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${axis}${bars}</svg>`;
-    elHint.textContent = `Empilé par activités (famille: ${famille}) — max semaine = ${maxWeek} h.`;
-  }
-
-  /* -----------------------------
-     11) Totaux par trimestre (empilé)
-     ----------------------------- */
-  function svgQuarterTotals(mode, famille){
     const periods = [
       {k:"t1", label:"T1"},
       {k:"t2", label:"T2"},
@@ -1221,27 +1269,16 @@ renderStats();
       {k:"school", label:"Total"}
     ];
 
-    const padL=50,padR=10,padT=20,padB=40,W=760,H=320;
-    const groupW=(W-padL-padR)/periods.length;
-    const barW=Math.min(70, groupW-20);
-
-    // mode: "families" ou "acts"
     const totalsBy = periods.map(p=>{
-      if(mode==="families"){
-        const tot = sumFamiliesFromWeekly(computeWeeklyFamilies(p.k));
-        return {label:p.label, tot, keys:FAMILY_ORDER, color:(k)=>FAMILY_COLORS[k]||"#777"};
-      } else {
-        const acts = FAMILLES[famille] || [];
-        const weeklyActs = computeWeeklyFamilyActivities(p.k, famille);
-        const tot = {}; acts.forEach(a=>tot[a]=0);
-        weeklyActs.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-        const palette = ["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"];
-        const color=(k)=> palette[acts.indexOf(k)%palette.length];
-        return {label:p.label, tot, keys:acts, color};
-      }
+      const wk = computeWeekly(p.k);
+      return {label:p.label, tot: computeTotals(wk)};
     });
 
     const maxBar = Math.max(1, ...totalsBy.map(x=>sumObj(x.tot)));
+
+    const padL=50,padR=10,padT=20,padB=40,W=760,H=320;
+    const groupW=(W-padL-padR)/totalsBy.length;
+    const barW=Math.min(70, groupW-20);
 
     let svg = `
       <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#2c2c2c"/>
@@ -1250,16 +1287,16 @@ renderStats();
       <text x="${padL-8}" y="${H-padB+4}" font-size="10" fill="#8b8b8b" text-anchor="end">0</text>
     `;
 
-    totalsBy.forEach((g, i)=>{
+    totalsBy.forEach((g,i)=>{
       const x = padL + i*groupW + (groupW-barW)/2;
       let y = H - padB;
 
-      g.keys.forEach(k=>{
-        const v = g.tot[k]||0;
+      inc.forEach(f=>{
+        const v = g.tot[f]||0;
         if(v<=0) return;
         const h = (v/maxBar)*(H-padT-padB);
         y -= h;
-        svg += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="${g.color(k)}"></rect>`;
+        svg += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="${colorForFamily(f)}"></rect>`;
       });
 
       svg += `<text x="${x+barW/2}" y="${H-15}" font-size="12" fill="#8b8b8b" text-anchor="middle">${g.label}</text>`;
@@ -1267,706 +1304,93 @@ renderStats();
     });
 
     elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${svg}</svg>`;
-    elHint.textContent = `Totaux empilés par trimestre (${mode==="families"?"familles":"activités"}).`;
+    elHint.textContent = `Totaux empilés par trimestre (selon familles cochées).`;
   }
 
-  /* -----------------------------
-     12) Camembert générique
-     ----------------------------- */
-  function svgPie(totals, colors, title, subtitle){
-    const sum = sumObj(totals);
-    const W=360,H=320,cx=180,cy=150,r=110;
-    if(sum<=0){
-      elPie.innerHTML = `<div class="hint">Aucune donnée.</div>`;
+  // --- SVG: pie annual (school)
+  function svgPieAnnual(){
+    const inc = includedFamilies();
+    if(inc.length === 0){
+      elChart.innerHTML = `<div class="hint">Aucune famille sélectionnée. Coche au moins une famille.</div>`;
+      elHint.textContent = "";
       return;
     }
+
+    const wk = computeWeekly("school");
+    const totals = computeTotals(wk);
+    const sum = sumObj(totals);
+
+    if(sum<=0){
+      elChart.innerHTML = `<div class="hint">Aucune donnée sur l’année scolaire.</div>`;
+      elHint.textContent = "";
+      return;
+    }
+
+    const W=420,H=340,cx=210,cy=160,r=120;
     function polar(a){ return [cx + r*Math.cos(a), cy + r*Math.sin(a)]; }
-    function arcPath(a0, a1){
+    function arcPath(a0,a1){
       const [x0,y0]=polar(a0), [x1,y1]=polar(a1);
       const large = (a1-a0)>Math.PI ? 1 : 0;
       return `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`;
     }
-    let a = -Math.PI/2;
-    let paths="", legend="";
 
-    Object.keys(totals).forEach(k=>{
-      const v = totals[k]||0;
+    let a = -Math.PI/2;
+    let paths="";
+    inc.forEach(f=>{
+      const v = totals[f]||0;
       if(v<=0) return;
       const frac = v/sum;
       const a1 = a + frac*2*Math.PI;
-      paths += `<path d="${arcPath(a,a1)}" fill="${colors[k]||"#777"}"></path>`;
-      legend += `<div class="leg"><span class="sw" style="background:${colors[k]||"#777"}"></span>${k}: <b style="color:var(--text)">${v}</b></div>`;
+      paths += `<path d="${arcPath(a,a1)}" fill="${colorForFamily(f)}"></path>`;
       a = a1;
     });
 
-    elPieTitle.textContent = title;
-    elPieHint.textContent = subtitle;
-
-    elPie.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${paths}
-        <text x="180" y="290" font-size="12" fill="#8b8b8b" text-anchor="middle">Total: ${sum} h</text>
+    elChart.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
+        ${paths}
+        <text x="${cx}" y="${H-18}" font-size="12" fill="#8b8b8b" text-anchor="middle">Total: ${sum} h</text>
       </svg>
-      <div class="legend">${legend}</div>
     `;
+    elHint.textContent = `Camembert annuel (année scolaire) selon familles cochées.`;
   }
 
-  /* -----------------------------
-     13) Légende (selon vue)
-     ----------------------------- */
-  function renderLegend(view, famille){
-    if(view==="stack_families" || view==="quarter_totals"){
-      elLegend.innerHTML = FAMILY_ORDER.map(f=>`
-        <div class="leg"><span class="sw" style="background:${FAMILY_COLORS[f]||"#777"}"></span>${f}</div>
-      `).join("");
-    } else if(view==="family_stack_acts"){
-      const acts = FAMILLES[famille]||[];
-      const pal = ["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"];
-      elLegend.innerHTML = acts.map((a,i)=>`
-        <div class="leg"><span class="sw" style="background:${pal[i%pal.length]}"></span>${a}</div>
-      `).join("");
-    } else {
-      elLegend.innerHTML = `<div class="leg"><span class="sw" style="background:#c8f53a"></span>${famille}</div>`;
-    }
-  }
-
-  /* -----------------------------
-     14) KPI période
-     ----------------------------- */
-  function renderKPI(period, view, famille){
-    const weeks = getWeeks(period);
-    let total = 0;
-
-    if(view==="stack_families" || view==="quarter_totals"){
-      const tot = sumFamiliesFromWeekly(computeWeeklyFamilies(period));
-      total = sumObj(tot);
-    } else {
-      const weekly = computeWeeklyFamilyActivities(period, famille);
-      const acts = FAMILLES[famille]||[];
-      const tot = {}; acts.forEach(a=>tot[a]=0);
-      weekly.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-      total = sumObj(tot);
-    }
-    elTotal.textContent = String(total);
-    elAvg.textContent = (total / Math.max(1, weeks.length)).toFixed(1);
-  }
-
-  /* -----------------------------
-     15) Rendu principal
-     ----------------------------- */
   function renderAll(){
-    const period = elPeriod.value;
-    const view = elView.value;
-    const fam = elFamily.value;
+    renderInclude();
+    renderDefs();
+    renderLegend();
+    save();
+    renderKPI(elPeriod.value);
 
-    renderKPI(period, view, fam);
+    elTitle.textContent =
+      elView.value==="stack_week" ? "Empilé par semaine" :
+      elView.value==="quarter_totals" ? "Totaux par trimestre" :
+      "Camembert annuel";
 
-    if(view==="stack_families"){
-      elTitle.textContent = "Empilé familles / semaine";
-      renderLegend(view, fam);
-      const weekly = computeWeeklyFamilies(period);
-      svgStackedWeeklyFamilies(weekly);
-
-      const tot = sumFamiliesFromWeekly(weekly);
-      svgPie(tot, FAMILY_COLORS, "Camembert familles", `Période: ${period.toUpperCase()}`);
-      elView.dataset.lastTotalsMode = "families";
-    }
-    else if(view==="family_week"){
-      elTitle.textContent = `Famille "${fam}" / semaine`;
-      renderLegend(view, fam);
-
-      const weekly = computeWeeklyFamilies(period).map(it=>({week:it.week, hours: it.fam[fam]||0}));
-      svgFamilyWeeklyBars(weekly);
-
-      // camembert activités dans la famille (période)
-      const weeklyActs = computeWeeklyFamilyActivities(period, fam);
-      const acts = FAMILLES[fam]||[];
-      const tot = {}; acts.forEach(a=>tot[a]=0);
-      weeklyActs.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-      const pal = {}; acts.forEach((a,i)=>{ const p=["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"]; pal[a]=p[i%p.length]; });
-      svgPie(tot, pal, `Camembert activités (${fam})`, `Période: ${period.toUpperCase()}`);
-      elView.dataset.lastTotalsMode = "acts";
-    }
-    else if(view==="family_stack_acts"){
-      elTitle.textContent = `Empilé activités / semaine (famille "${fam}")`;
-      renderLegend(view, fam);
-
-      const weeklyActs = computeWeeklyFamilyActivities(period, fam);
-      svgStackedWeeklyActivities(weeklyActs, fam);
-
-      const acts = FAMILLES[fam]||[];
-      const tot = {}; acts.forEach(a=>tot[a]=0);
-      weeklyActs.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-      const pal = {}; acts.forEach((a,i)=>{ const p=["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"]; pal[a]=p[i%p.length]; });
-      svgPie(tot, pal, `Camembert activités (${fam})`, `Période: ${period.toUpperCase()}`);
-      elView.dataset.lastTotalsMode = "acts";
-    }
-    else { // quarter_totals
-      const last = elView.dataset.lastTotalsMode || "families";
-      if(last==="families"){
-        elTitle.textContent = "Totaux empilés par trimestre (familles)";
-        renderLegend("stack_families", fam);
-        svgQuarterTotals("families", fam);
-
-        const tot = sumFamiliesFromWeekly(computeWeeklyFamilies("school"));
-        svgPie(tot, FAMILY_COLORS, "Camembert familles (annuel)", "Année scolaire");
-      } else {
-        elTitle.textContent = `Totaux empilés par trimestre (activités – ${fam})`;
-        renderLegend("family_stack_acts", fam);
-        svgQuarterTotals("acts", fam);
-
-        const weeklyActs = computeWeeklyFamilyActivities("school", fam);
-        const acts = FAMILLES[fam]||[];
-        const tot = {}; acts.forEach(a=>tot[a]=0);
-        weeklyActs.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-        const pal = {}; acts.forEach((a,i)=>{ const p=["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"]; pal[a]=p[i%p.length]; });
-        svgPie(tot, pal, `Camembert activités (annuel – ${fam})`, "Année scolaire");
-      }
+    if(elView.value==="stack_week"){
+      svgStackedWeekly(computeWeekly(elPeriod.value));
+    } else if(elView.value==="quarter_totals"){
+      svgQuarterTotals();
+    } else {
+      svgPieAnnual();
     }
   }
 
-  /* -----------------------------
-     16) Events
-     ----------------------------- */
+  // --- Events
   elPeriod.addEventListener("change", renderAll);
   elView.addEventListener("change", renderAll);
-  elFamily.addEventListener("change", renderAll);
 
-  // initial legend
-  elLegend.innerHTML = FAMILY_ORDER.map(f=>`<div class="leg"><span class="sw" style="background:${FAMILY_COLORS[f]||"#777"}"></span>${f}</div>`).join("");
-
-})();
-/* ===== END ONGLET "FAMILLES+" (sélection famille + empilé + totaux trimestre + camembert) ===== */
-
-/* ===== BEGIN ONGLET "FAMILLES+ V2" (robuste iPad / const globals, sans export CSV) ===== */
-(function(){
-  // Anti-duplication : si l'onglet ou la section existe déjà, on ne fait rien.
-  if (document.querySelector('.tabs [data-view="famillesplus"]') || document.getElementById("view-famillesplus")) {
-    return;
-  }
-
-  // Récupère les références même si ce sont des "const" globaux (pas sur window)
-  const SLOTS_REF = (typeof SLOTS !== "undefined") ? SLOTS : null;
-  const DAYS_REF  = (typeof DAYS  !== "undefined") ? DAYS  : null;
-  const getCell_REF = (typeof getCell === "function") ? getCell : null;
-  const weeksForPeriod_REF = (typeof weeksForPeriod === "function") ? weeksForPeriod : null;
-
-  if(!SLOTS_REF || !DAYS_REF || !getCell_REF || !weeksForPeriod_REF){
-    // Affiche un message visible plutôt que d'échouer silencieusement
-    const msg = "Familles+ : fonctions manquantes (SLOTS/DAYS/getCell/weeksForPeriod).";
-    console.warn(msg, {SLOTS_REF, DAYS_REF, getCell_REF, weeksForPeriod_REF});
-    try { alert(msg); } catch(e) {}
-    return;
-  }
-
-  /* -----------------------------
-     1) Familles (modifiable)
-     ----------------------------- */
-  const FAMILLES = {
-    "Gestion": ["Gestion", "Coordination", "Instances"],
-    "Pédagogie": ["Cours", "Préparation", "CDC/suivi", "Parcours Avenir"],
-    "Projets": ["Baroque", "Pépinières", "Numérique"],
-    "Réunions": ["Réunion"],
-    "Autres": ["Amicale", "Autres"]
-  };
-
-  const FAMILY_COLORS = {
-    "Gestion": "#7f8c8d",
-    "Pédagogie": "#c8f53a",
-    "Projets": "#27ae60",
-    "Réunions": "#2980b9",
-    "Autres": "#ff9ff3"
-  };
-
-  const FAMILY_ORDER = Object.keys(FAMILLES);
-
-  /* -----------------------------
-     2) CSS
-     ----------------------------- */
-  const style = document.createElement("style");
-  style.textContent = `
-    #view-famillesplus .legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
-    #view-famillesplus .leg{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:12px}
-    #view-famillesplus .sw{width:12px;height:12px;border-radius:4px}
-    #view-famillesplus .chartbox{border:1px solid var(--border);border-radius:14px;overflow:auto;background:rgba(255,255,255,.02)}
-    #view-famillesplus .charttitle{font-weight:900;margin-bottom:8px}
-    #view-famillesplus .subhint{color:var(--dim);font-size:12px;margin-top:6px}
-    #view-famillesplus .grid2{display:grid;grid-template-columns:1fr;gap:12px}
-    @media(min-width:900px){#view-famillesplus .grid2{grid-template-columns:1.2fr .8fr}}
-    #view-famillesplus .kpi{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
-  `;
-  document.head.appendChild(style);
-
-  /* -----------------------------
-     3) Ajoute l’onglet
-     ----------------------------- */
-  const tabs = document.querySelector(".tabs");
-  if(!tabs){ console.warn("Familles+ : .tabs introuvable"); return; }
-
-  const tab = document.createElement("button");
-  tab.className = "tab";
-  tab.dataset.view = "famillesplus";
-  tab.textContent = "📈 Familles+";
-  tabs.appendChild(tab);
-
-  /* -----------------------------
-     4) Ajoute la page
-     ----------------------------- */
-  const views = document.querySelector(".views");
-  if(!views){ console.warn("Familles+ : .views introuvable"); return; }
-
-  const sec = document.createElement("section");
-  sec.id = "view-famillesplus";
-  sec.innerHTML = `
-    <div class="card">
-      <div class="row">
-        <div class="pill">Période :</div>
-        <select id="fpPeriod">
-          <option value="school">Année scolaire</option>
-          <option value="t1">Trimestre 1</option>
-          <option value="t2">Trimestre 2</option>
-          <option value="t3">Trimestre 3</option>
-          <option value="bonus">Bonus été</option>
-        </select>
-
-        <div class="pill">Vue :</div>
-        <select id="fpView">
-          <option value="stack_families">Empilé familles / semaine</option>
-          <option value="family_week">Famille sélectionnée / semaine</option>
-          <option value="family_stack_acts">Famille sélectionnée empilé / activités</option>
-          <option value="quarter_totals">Totaux par trimestre</option>
-        </select>
-
-        <div class="pill">Famille :</div>
-        <select id="fpFamily"></select>
-      </div>
-
-      <div class="legend" id="fpLegend"></div>
-
-      <div class="kpi">
-        <div class="pill">Total période : <b id="fpTotal" style="color:var(--text)">0</b> h</div>
-        <div class="pill">Moyenne / semaine (période) : <b id="fpAvg" style="color:var(--text)">0</b> h</div>
-      </div>
-
-      <div style="height:12px"></div>
-
-      <div class="grid2">
-        <div>
-          <div class="charttitle" id="fpTitle">Graphique</div>
-          <div class="chartbox">
-            <div id="fpChart" style="min-height:320px;padding:10px"></div>
-          </div>
-          <div class="subhint" id="fpHint"></div>
-        </div>
-
-        <div>
-          <div class="charttitle" id="fpPieTitle">Camembert</div>
-          <div class="chartbox">
-            <div id="fpPie" style="min-height:320px;padding:10px"></div>
-          </div>
-          <div class="subhint" id="fpPieHint"></div>
-        </div>
-      </div>
-    </div>
-  `;
-  views.appendChild(sec);
-
-  /* -----------------------------
-     5) Click onglet
-     ----------------------------- */
-  tab.addEventListener("click", ()=>{
-    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
-    tab.classList.add("active");
-    document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
-    sec.classList.add("active");
+  btnReset.addEventListener("click", ()=>{
+    ADV.defs = deepClone(DEFAULT_FAMILIES);
+    ADV.include = Object.keys(DEFAULT_FAMILIES).reduce((acc,k)=>{ acc[k]=true; return acc; }, {});
+    localStorage.setItem(LS_ADV, JSON.stringify(ADV));
     renderAll();
   });
 
-  /* -----------------------------
-     6) UI refs
-     ----------------------------- */
-  const elPeriod = sec.querySelector("#fpPeriod");
-  const elView   = sec.querySelector("#fpView");
-  const elFamily = sec.querySelector("#fpFamily");
-  const elLegend = sec.querySelector("#fpLegend");
-  const elChart  = sec.querySelector("#fpChart");
-  const elTitle  = sec.querySelector("#fpTitle");
-  const elHint   = sec.querySelector("#fpHint");
-  const elPie    = sec.querySelector("#fpPie");
-  const elPieTitle = sec.querySelector("#fpPieTitle");
-  const elPieHint  = sec.querySelector("#fpPieHint");
-  const elTotal  = sec.querySelector("#fpTotal");
-  const elAvg    = sec.querySelector("#fpAvg");
-
-  FAMILY_ORDER.forEach(f=>{
-    const o=document.createElement("option");
-    o.value=f; o.textContent=f;
-    elFamily.appendChild(o);
-  });
-
-  /* -----------------------------
-     7) Data helpers
-     ----------------------------- */
-  function getWeeks(period){ return weeksForPeriod_REF(period); }
-
-  function familyForActivity(a){
-    for(const fam of FAMILY_ORDER){
-      if(FAMILLES[fam].includes(a)) return fam;
-    }
-    return null;
-  }
-
-  function computeWeeklyFamilies(period){
-    const weeks = getWeeks(period);
-    return weeks.map(w=>{
-      const fam = {};
-      FAMILY_ORDER.forEach(f=>fam[f]=0);
-      for(const slot of SLOTS_REF){
-        for(const day of DAYS_REF){
-          const a = getCell_REF(w, slot, day);
-          if(!a || a==="Occupation") continue;
-          const f = familyForActivity(a);
-          if(f) fam[f] += 1;
-        }
-      }
-      return {week:w, fam};
-    });
-  }
-
-  function computeWeeklyFamilyActivities(period, famille){
-    const acts = FAMILLES[famille] || [];
-    const weeks = getWeeks(period);
-    return weeks.map(w=>{
-      const per = {};
-      acts.forEach(a=>per[a]=0);
-      for(const slot of SLOTS_REF){
-        for(const day of DAYS_REF){
-          const a = getCell_REF(w, slot, day);
-          if(!a || a==="Occupation") continue;
-          if(per[a] !== undefined) per[a] += 1;
-        }
-      }
-      return {week:w, per};
-    });
-  }
-
-  function sumObj(obj){ return Object.values(obj).reduce((s,v)=>s+(v||0),0); }
-
-  function sumFamiliesFromWeekly(weekly){
-    const tot = {};
-    FAMILY_ORDER.forEach(f=>tot[f]=0);
-    weekly.forEach(it=>FAMILY_ORDER.forEach(f=>tot[f]+=it.fam[f]||0));
-    return tot;
-  }
-
-  /* -----------------------------
-     8) SVG helpers
-     ----------------------------- */
-  function svgBaseAxis(padL,padT,padB,W,H,padR,maxVal){
-    return `
-      <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="#2c2c2c"/>
-      <text x="${padL-8}" y="${padT+8}" font-size="10" fill="#8b8b8b" text-anchor="end">${maxVal}</text>
-      <text x="${padL-8}" y="${H-padB+4}" font-size="10" fill="#8b8b8b" text-anchor="end">0</text>
-    `;
-  }
-
-  function svgStackedWeeklyFamilies(weekly){
-    const n = weekly.length;
-    const barW=18, gap=6, padL=40, padR=10, padT=20, padB=30;
-    const W = Math.max(720, padL+padR+n*(barW+gap));
-    const H = 320;
-    const maxWeek = Math.max(1, ...weekly.map(it=>sumObj(it.fam)));
-
-    let bars="";
-    weekly.forEach((it,i)=>{
-      const x = padL + i*(barW+gap);
-      let y = H - padB;
-
-      FAMILY_ORDER.forEach(f=>{
-        const v = it.fam[f]||0;
-        if(v<=0) return;
-        const h = (v/maxWeek)*(H-padT-padB);
-        y -= h;
-        bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${FAMILY_COLORS[f]||"#777"}"></rect>`;
-      });
-
-      const show = n<=18 ? true : (i%2===0);
-      if(show){
-        bars += `<text x="${x+barW/2}" y="${H-10}" font-size="10" fill="#8b8b8b" text-anchor="middle">S${it.week}</text>`;
-      }
-    });
-
-    const axis = svgBaseAxis(padL,padT,padB,W,H,padR,maxWeek);
-    elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${axis}${bars}</svg>`;
-    elHint.textContent = `Empilé par semaine (max semaine = ${maxWeek} h).`;
-  }
-
-  function svgFamilyWeeklyBars(weeklyFam){
-    const n = weeklyFam.length;
-    const barW=18, gap=6, padL=40, padR=10, padT=20, padB=30;
-    const W = Math.max(720, padL+padR+n*(barW+gap));
-    const H = 320;
-    const maxWeek = Math.max(1, ...weeklyFam.map(it=>it.hours));
-
-    let bars="";
-    weeklyFam.forEach((it,i)=>{
-      const x = padL + i*(barW+gap);
-      const h = (it.hours/maxWeek)*(H-padT-padB);
-      const y = H - padB - h;
-      bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="#c8f53a"></rect>`;
-      const show = n<=18 ? true : (i%2===0);
-      if(show){
-        bars += `<text x="${x+barW/2}" y="${H-10}" font-size="10" fill="#8b8b8b" text-anchor="middle">S${it.week}</text>`;
-      }
-    });
-
-    const axis = svgBaseAxis(padL,padT,padB,W,H,padR,maxWeek);
-    elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${axis}${bars}</svg>`;
-    elHint.textContent = `Famille sélectionnée — max semaine = ${maxWeek} h.`;
-  }
-
-  function svgStackedWeeklyActivities(weeklyActs, famille){
-    const acts = FAMILLES[famille] || [];
-    const palette = ["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"];
-    const colors = {};
-    acts.forEach((a,i)=>colors[a]=palette[i%palette.length]);
-
-    const n = weeklyActs.length;
-    const barW=18, gap=6, padL=40, padR=10, padT=20, padB=30;
-    const W = Math.max(720, padL+padR+n*(barW+gap));
-    const H = 320;
-    const maxWeek = Math.max(1, ...weeklyActs.map(it=>sumObj(it.per)));
-
-    let bars="";
-    weeklyActs.forEach((it,i)=>{
-      const x = padL + i*(barW+gap);
-      let y = H - padB;
-
-      acts.forEach(a=>{
-        const v = it.per[a]||0;
-        if(v<=0) return;
-        const h = (v/maxWeek)*(H-padT-padB);
-        y -= h;
-        bars += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${colors[a]}"></rect>`;
-      });
-
-      const show = n<=18 ? true : (i%2===0);
-      if(show){
-        bars += `<text x="${x+barW/2}" y="${H-10}" font-size="10" fill="#8b8b8b" text-anchor="middle">S${it.week}</text>`;
-      }
-    });
-
-    const axis = svgBaseAxis(padL,padT,padB,W,H,padR,maxWeek);
-    elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${axis}${bars}</svg>`;
-    elHint.textContent = `Empilé par activités (famille: ${famille}) — max semaine = ${maxWeek} h.`;
-  }
-
-  function svgQuarterTotals(mode, famille){
-    const periods = [
-      {k:"t1", label:"T1"},
-      {k:"t2", label:"T2"},
-      {k:"t3", label:"T3"},
-      {k:"bonus", label:"Bonus"},
-      {k:"school", label:"Total"}
-    ];
-
-    const padL=50,padR=10,padT=20,padB=40,W=760,H=320;
-    const groupW=(W-padL-padR)/periods.length;
-    const barW=Math.min(70, groupW-20);
-
-    const totalsBy = periods.map(p=>{
-      if(mode==="families"){
-        const tot = sumFamiliesFromWeekly(computeWeeklyFamilies(p.k));
-        return {label:p.label, tot, keys:FAMILY_ORDER, color:(k)=>FAMILY_COLORS[k]||"#777"};
-      } else {
-        const acts = FAMILLES[famille] || [];
-        const weeklyActs = computeWeeklyFamilyActivities(p.k, famille);
-        const tot = {}; acts.forEach(a=>tot[a]=0);
-        weeklyActs.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-        const palette = ["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"];
-        const color=(k)=> palette[acts.indexOf(k)%palette.length];
-        return {label:p.label, tot, keys:acts, color};
-      }
-    });
-
-    const maxBar = Math.max(1, ...totalsBy.map(x=>sumObj(x.tot)));
-
-    let svg = svgBaseAxis(padL,padT,padB,W,H,padR,maxBar);
-
-    totalsBy.forEach((g, i)=>{
-      const x = padL + i*groupW + (groupW-barW)/2;
-      let y = H - padB;
-
-      g.keys.forEach(k=>{
-        const v = g.tot[k]||0;
-        if(v<=0) return;
-        const h = (v/maxBar)*(H-padT-padB);
-        y -= h;
-        svg += `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="4" fill="${g.color(k)}"></rect>`;
-      });
-
-      svg += `<text x="${x+barW/2}" y="${H-15}" font-size="12" fill="#8b8b8b" text-anchor="middle">${g.label}</text>`;
-      svg += `<text x="${x+barW/2}" y="${padT+12}" font-size="10" fill="#8b8b8b" text-anchor="middle">${sumObj(g.tot)}h</text>`;
-    });
-
-    elChart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${svg}</svg>`;
-    elHint.textContent = `Totaux empilés par trimestre (${mode==="families"?"familles":"activités"}).`;
-  }
-
-  function svgPie(totals, colors, title, subtitle){
-    const sum = sumObj(totals);
-    const W=360,H=320,cx=180,cy=150,r=110;
-    if(sum<=0){
-      elPie.innerHTML = `<div class="hint">Aucune donnée.</div>`;
-      return;
-    }
-    function polar(a){ return [cx + r*Math.cos(a), cy + r*Math.sin(a)]; }
-    function arcPath(a0, a1){
-      const [x0,y0]=polar(a0), [x1,y1]=polar(a1);
-      const large = (a1-a0)>Math.PI ? 1 : 0;
-      return `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`;
-    }
-    let a = -Math.PI/2;
-    let paths="", legend="";
-
-    Object.keys(totals).forEach(k=>{
-      const v = totals[k]||0;
-      if(v<=0) return;
-      const frac = v/sum;
-      const a1 = a + frac*2*Math.PI;
-      paths += `<path d="${arcPath(a,a1)}" fill="${colors[k]||"#777"}"></path>`;
-      legend += `<div class="leg"><span class="sw" style="background:${colors[k]||"#777"}"></span>${k}: <b style="color:var(--text)">${v}</b></div>`;
-      a = a1;
-    });
-
-    elPieTitle.textContent = title;
-    elPieHint.textContent = subtitle;
-
-    elPie.innerHTML = `
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${paths}
-        <text x="180" y="290" font-size="12" fill="#8b8b8b" text-anchor="middle">Total: ${sum} h</text>
-      </svg>
-      <div class="legend">${legend}</div>
-    `;
-  }
-
-  function renderLegend(view, famille){
-    if(view==="stack_families" || view==="quarter_totals"){
-      elLegend.innerHTML = FAMILY_ORDER.map(f=>`
-        <div class="leg"><span class="sw" style="background:${FAMILY_COLORS[f]||"#777"}"></span>${f}</div>
-      `).join("");
-    } else if(view==="family_stack_acts"){
-      const acts = FAMILLES[famille]||[];
-      const pal = ["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"];
-      elLegend.innerHTML = acts.map((a,i)=>`
-        <div class="leg"><span class="sw" style="background:${pal[i%pal.length]}"></span>${a}</div>
-      `).join("");
-    } else {
-      elLegend.innerHTML = `<div class="leg"><span class="sw" style="background:#c8f53a"></span>${famille}</div>`;
-    }
-  }
-
-  function renderKPI(period, view, famille){
-    const weeks = getWeeks(period);
-    let total = 0;
-
-    if(view==="stack_families" || view==="quarter_totals"){
-      total = sumObj(sumFamiliesFromWeekly(computeWeeklyFamilies(period)));
-    } else {
-      const weekly = computeWeeklyFamilyActivities(period, famille);
-      const acts = FAMILLES[famille]||[];
-      const tot = {}; acts.forEach(a=>tot[a]=0);
-      weekly.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-      total = sumObj(tot);
-    }
-    elTotal.textContent = String(total);
-    elAvg.textContent = (total / Math.max(1, weeks.length)).toFixed(1);
-  }
-
-  function renderAll(){
-    const period = elPeriod.value;
-    const view = elView.value;
-    const fam = elFamily.value;
-
-    renderKPI(period, view, fam);
-
-    if(view==="stack_families"){
-      elTitle.textContent = "Empilé familles / semaine";
-      renderLegend(view, fam);
-
-      const weekly = computeWeeklyFamilies(period);
-      svgStackedWeeklyFamilies(weekly);
-
-      svgPie(sumFamiliesFromWeekly(weekly), FAMILY_COLORS, "Camembert familles", `Période: ${period.toUpperCase()}`);
-      elView.dataset.lastTotalsMode = "families";
-    }
-    else if(view==="family_week"){
-      elTitle.textContent = `Famille "${fam}" / semaine`;
-      renderLegend(view, fam);
-
-      const weekly = computeWeeklyFamilies(period).map(it=>({week:it.week, hours: it.fam[fam]||0}));
-      svgFamilyWeeklyBars(weekly);
-
-      const weeklyActs = computeWeeklyFamilyActivities(period, fam);
-      const acts = FAMILLES[fam]||[];
-      const tot = {}; acts.forEach(a=>tot[a]=0);
-      weeklyActs.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-      const pal = {}; acts.forEach((a,i)=>{ const p=["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"]; pal[a]=p[i%p.length]; });
-      svgPie(tot, pal, `Camembert activités (${fam})`, `Période: ${period.toUpperCase()}`);
-
-      elView.dataset.lastTotalsMode = "acts";
-    }
-    else if(view==="family_stack_acts"){
-      elTitle.textContent = `Empilé activités / semaine (famille "${fam}")`;
-      renderLegend(view, fam);
-
-      const weeklyActs = computeWeeklyFamilyActivities(period, fam);
-      svgStackedWeeklyActivities(weeklyActs, fam);
-
-      const acts = FAMILLES[fam]||[];
-      const tot = {}; acts.forEach(a=>tot[a]=0);
-      weeklyActs.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-      const pal = {}; acts.forEach((a,i)=>{ const p=["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"]; pal[a]=p[i%p.length]; });
-      svgPie(tot, pal, `Camembert activités (${fam})`, `Période: ${period.toUpperCase()}`);
-
-      elView.dataset.lastTotalsMode = "acts";
-    }
-    else { // quarter_totals
-      const last = elView.dataset.lastTotalsMode || "families";
-      if(last==="families"){
-        elTitle.textContent = "Totaux empilés par trimestre (familles)";
-        renderLegend("stack_families", fam);
-        svgQuarterTotals("families", fam);
-
-        const tot = sumFamiliesFromWeekly(computeWeeklyFamilies("school"));
-        svgPie(tot, FAMILY_COLORS, "Camembert familles (annuel)", "Année scolaire");
-      } else {
-        elTitle.textContent = `Totaux empilés par trimestre (activités – ${fam})`;
-        renderLegend("family_stack_acts", fam);
-        svgQuarterTotals("acts", fam);
-
-        const weeklyActs = computeWeeklyFamilyActivities("school", fam);
-        const acts = FAMILLES[fam]||[];
-        const tot = {}; acts.forEach(a=>tot[a]=0);
-        weeklyActs.forEach(it=>acts.forEach(a=>tot[a]+=it.per[a]||0));
-        const pal = {}; acts.forEach((a,i)=>{ const p=["#c8f53a","#27ae60","#2980b9","#9b59b6","#e74c3c","#f39c12","#1abc9c","#ff9ff3","#7f8c8d"]; pal[a]=p[i%p.length]; });
-        svgPie(tot, pal, `Camembert activités (annuel – ${fam})`, "Année scolaire");
-      }
-    }
-  }
-
-  /* -----------------------------
-     17) Events
-     ----------------------------- */
-  elPeriod.addEventListener("change", renderAll);
-  elView.addEventListener("change", renderAll);
-  elFamily.addEventListener("change", renderAll);
-
-  // Legend initial
-  elLegend.innerHTML = FAMILY_ORDER.map(f=>`<div class="leg"><span class="sw" style="background:${FAMILY_COLORS[f]||"#777"}"></span>${f}</div>`).join("");
+  // --- première peinture
+  renderAll();
 
 })();
-/* ===== END ONGLET "FAMILLES+ V2" ===== */
+/* ===== END STATISTIQUES AVANCÉES ===== */
   
 </script>
 </body>
