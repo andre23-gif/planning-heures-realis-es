@@ -13,7 +13,6 @@
       --danger:#ff6b6b; --warn:#ffcc66; --ok:#6ee7b7;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
     }
-
     *{box-sizing:border-box}
     body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
     header{
@@ -29,7 +28,6 @@
       padding:8px 10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer
     }
     .tab.active{background:var(--accent);border-color:var(--accent);color:#0f0f0f}
-
     main{padding:14px;max-width:1200px;margin:0 auto}
     .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
@@ -47,7 +45,6 @@
       padding:10px 12px;border-radius:10px
     }
     input[type="number"]{width:92px}
-
     .views > section{display:none}
     .views > section.active{display:block}
 
@@ -102,7 +99,7 @@
     .b-alert{background:rgba(255,107,107,.14);color:var(--danger);border:1px solid rgba(255,107,107,.35)}
     .mini svg{width:100%;height:auto;display:block}
 
-    /* Barre globale (classes couleur) */
+    /* Global progress colors */
     .global-warn { background: var(--warn) !important; }
     .global-ok { background: var(--ok) !important; }
     .global-alert { background: var(--danger) !important; }
@@ -163,11 +160,7 @@
           </label>
         </div>
 
-        
-<div class="hint">
-  Import CSV : fichiers hebdo “Semaine XX …” au format ;Lundi;Mardi;…;Dimanche.
-</div>
-
+        <!-- NOTE: on a volontairement retiré la "ligne de texte" parasite ici -->
 
         <div style="height:12px"></div>
         <div class="gridwrap">
@@ -181,13 +174,13 @@
       <div class="card" style="margin-bottom:12px">
         <div class="row">
           <div class="pill">Période :</div>
-    <select id="periodSelect">
-  <option value="school">Année scolaire (T1+T2+T3 + bonus été)</option>
-  <option value="t1">Trimestre 1 (S36→S48)</option>
-  <option value="t2">Trimestre 2 (S49→S11)</option>
-  <option value="t3">Trimestre 3 (S12→S27)</option>
-  <option value="bonus">Bonus été (S28→S35)</option>
-</select>
+          <select id="periodSelect">
+            <option value="school">Année scolaire (T1+T2+T3 + bonus été)</option>
+            <option value="t1">Trimestre 1 (S36→S48)</option>
+            <option value="t2">Trimestre 2 (S49→S11)</option>
+            <option value="t3">Trimestre 3 (S12→S27)</option>
+            <option value="bonus">Bonus été (S28→S35)</option>
+          </select>
 
           <div class="spacer"></div>
 
@@ -197,9 +190,9 @@
         <div style="height:10px"></div>
 
         <div class="row">
-          <div class="pill">Semaines travaillées :</div>
-          <input type="range" id="workedRange" min="1" max="45" value="36">
-          <input type="number" id="workedInput" min="1" max="45" step="1" value="36" title="Nombre de semaines travaillées">
+          <div class="pill">Semaines travaillées (diviseur) :</div>
+          <input type="range" id="workedRange" min="1" max="60" value="36">
+          <input type="number" id="workedInput" min="1" max="60" step="1" value="36" title="Nombre de semaines travaillées">
           <div class="pill">Choisi : <b id="workedLabel" style="color:var(--text)">36</b></div>
 
           <div class="spacer"></div>
@@ -224,7 +217,6 @@
           <input id="alertPct" type="number" min="100" max="300" step="1" style="width:90px">
         </div>
 
-        <!-- Barre visuelle objectif global -->
         <div class="row" style="margin-top:10px">
           <div class="pill">Progression globale :</div>
           <div class="track" style="flex:1; min-width:220px">
@@ -234,20 +226,21 @@
         </div>
 
         <div class="hint">
-          1 case remplie = 1 heure. La barre globale suit l’objectif global (manuel) ou la somme des attendus par activité si le global est vide.
+          Le diviseur (curseur) ne filtre pas les semaines : il sert uniquement à calculer la moyenne.
+          En “Année scolaire”, le bonus été (S28→S35) est ajouté aux heures réalisées sans augmenter le diviseur.
         </div>
       </div>
 
       <div class="statsgrid">
         <div class="card">
           <div style="font-weight:900">Réalisé vs attendu (par activité)</div>
-          <div class="hint">Renseigne l’attendu (heures) pour la période choisie, ou laisse vide.</div>
+          <div class="hint">Tu peux renseigner l’attendu (heures) pour la période choisie, ou laisser vide.</div>
           <div class="bars" id="bars"></div>
         </div>
 
         <div class="card mini">
           <div style="font-weight:900">Évolution (heures actives / semaine)</div>
-          <div class="hint">Sur les semaines prises en compte (après vacances).</div>
+          <div class="hint">Sur la période sélectionnée (sans filtre du curseur).</div>
           <div id="spark"></div>
         </div>
       </div>
@@ -261,7 +254,7 @@
           <div class="spacer"></div>
           <button class="btn danger" id="resetVac">Réinitialiser</button>
         </div>
-        <div class="hint">Clique une semaine pour la barrer (elle sera exclue des statistiques).</div>
+        <div class="hint">Clique une semaine pour la barrer (elle sera exclue des stats).</div>
         <div style="height:12px"></div>
         <div class="weeks" id="vacWeeks"></div>
       </div>
@@ -290,7 +283,6 @@
 const DAYS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
 const SLOTS = ["Préparation","M1","M2","M3","M4","Midi","S1","S2","S3","S4","Soir 1","Soir 2","Soir 3","Soir 4","Nuit 1","Nuit 2","Nuit 3","Nuit 4","Nuit 5"];
 const ACTIVITIES = ["Cours","CDC/suivi","Préparation","Instances","Parcours Avenir","Baroque","Gestion","Numérique","Coordination","Réunion","Amicale","Autres","Pépinières","Occupation"];
-
 const COLORS = {
   "Cours":"#c8f53a","CDC/suivi":"#3a7bd5","Préparation":"#f39c12","Instances":"#9b59b6",
   "Parcours Avenir":"#1abc9c","Baroque":"#e74c3c","Gestion":"#7f8c8d","Numérique":"#27ae60",
@@ -299,15 +291,15 @@ const COLORS = {
 };
 
 /* ========= STORAGE ========= */
-const LS_OVR = "ps_overrides_clean_v3";
-const LS_VAC = "ps_vacances_v1";
-const LS_OBJ = "ps_objectifs_clean_v3";
+const LS_OVR = "ps_overrides_final_v1";
+const LS_VAC = "ps_vacances_final_v1";
+const LS_OBJ = "ps_objectifs_final_v1";
 
 let overrides = {};
 let vacances = new Set();
 let objectifs = {
-  global: { school: 0, annual: 0, t1: 0, t2: 0, t3: 0, t4: 0 },   // 0 => mode auto
-  perActivity: { school:{}, annual:{}, t1:{}, t2:{}, t3:{}, t4:{} },
+  global: { school: 0, t1: 0, t2: 0, t3: 0, bonus: 0 }, // 0 => auto
+  perActivity: { school:{}, t1:{}, t2:{}, t3:{}, bonus:{} },
   thresholds: { warnPct: 90, alertPct: 110 }
 };
 
@@ -327,17 +319,11 @@ function toast(msg){
   t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"), 1600);
 }
-  
-// --- BEGIN scheduleStatsRefresh (anti-saut iPad) ---
-let _statsTimer = null;
+let _statsTimer=null;
 function scheduleStatsRefresh(){
   clearTimeout(_statsTimer);
-  _statsTimer = setTimeout(() => {
-    try { renderStats(); } catch(e) {}
-  }, 200);
+  _statsTimer = setTimeout(()=>{ try{ renderStats(); }catch(e){} }, 200);
 }
-// --- END scheduleStatsRefresh ---
-
 function k(week, slot, day){ return `S${week}|${slot}|${day}`; }
 function getCell(week, slot, day){
   const key = k(week,slot,day);
@@ -349,7 +335,7 @@ function setCell(week, slot, day, val){
   localStorage.setItem(LS_OVR, JSON.stringify(overrides));
 }
 function fixText(s){
-  // corrige l’encodage observé dans ton CSV S28 (PrĂ©paration) [2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)
+  // corrige PrĂ©paration (observé dans Semaine 28) 
   return (s || "")
     .replaceAll("PrĂ©paration", "Préparation")
     .replaceAll("PrÃ©paration", "Préparation")
@@ -358,57 +344,31 @@ function fixText(s){
 }
 function normSpace(s){ return (s||"").trim().replace(/\s+/g," "); }
 function uniqueOrdered(arr){
-  const seen = new Set();
-  const out = [];
-  for(const x of arr){
-    if(seen.has(x)) continue;
-    seen.add(x);
-    out.push(x);
-  }
+  const seen = new Set(); const out=[];
+  for(const x of arr){ if(seen.has(x)) continue; seen.add(x); out.push(x); }
   return out;
 }
 
-/* ========= WEEKS (DEDUP) ========= */
-function uniqueOrdered(arr){
-  const seen = new Set();
-  const out = [];
-  for(const x of arr){
-    if(seen.has(x)) continue;
-    seen.add(x);
-    out.push(x);
-  }
-  return out;
-}
-
-// Année scolaire : S36→S52 puis S1→S27 (été S28→S35 exclu)
+/* ========= WEEKS ========= */
+// Saisissable toute l'année scolaire + été : S36→S52 puis S1→S35
 function schoolOrder(){
-  const w = [];
+  const w=[];
   for(let i=36;i<=52;i++) w.push(i);
-  for(let i=1;i<=27;i++) w.push(i);
+  for(let i=1;i<=35;i++) w.push(i);
   return uniqueOrdered(w);
 }
-
 const SCHOOL_ORDER = schoolOrder();
 let currentWeek = SCHOOL_ORDER[0];
 
+// Trimestres demandés + bonus été
+const T1 = Array.from({length:(48-36+1)}, (_,i)=>36+i);                     // 36..48
+const T2 = [...Array.from({length:(52-49+1)},(_,i)=>49+i), ...Array.from({length:11},(_,i)=>1+i)]; // 49..52 + 1..11
+const T3 = Array.from({length:(27-12+1)}, (_,i)=>12+i);                     // 12..27
+const BONUS = Array.from({length:(35-28+1)}, (_,i)=>28+i);                  // 28..35
+
 const PERIODS = {
-  // Année scolaire (hors été)
-  school: SCHOOL_ORDER.slice(),
-
-  // Trimestre 1 : S36 → S48
-  t1: Array.from({length:(48-36+1)}, (_,i)=>36+i),
-
-  // Trimestre 2 : S49 → S52 puis S1 → S11
-  t2: [
-    ...Array.from({length:(52-49+1)}, (_,i)=>49+i),
-    ...Array.from({length:11}, (_,i)=>1+i)
-  ],
-
-  // Trimestre 3 : S12 → S27
-  t3: Array.from({length:(27-12+1)}, (_,i)=>12+i),
-
-  // Année civile (si tu la gardes)
-  annual: Array.from({length:52}, (_,i)=>i+1)
+  t1: T1, t2: T2, t3: T3, bonus: BONUS,
+  school: uniqueOrdered([...T1, ...T2, ...T3, ...BONUS])
 };
 
 /* ========= TABS ========= */
@@ -418,8 +378,8 @@ document.querySelectorAll(".tab").forEach(btn=>{
     btn.classList.add("active");
     document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
     document.getElementById("view-"+btn.dataset.view).classList.add("active");
-    if(btn.dataset.view === "stats") renderStats();
-    if(btn.dataset.view === "vacances") renderVac();
+    if(btn.dataset.view==="stats") renderStats();
+    if(btn.dataset.view==="vacances") renderVac();
   });
 });
 
@@ -428,44 +388,40 @@ const weekSelect = document.getElementById("weekSelect");
 function buildWeekSelect(){
   weekSelect.innerHTML = "";
   for(const w of SCHOOL_ORDER){
-    const opt = document.createElement("option");
-    opt.value = w;
-    opt.textContent = "Semaine " + w;
+    const opt=document.createElement("option");
+    opt.value=w; opt.textContent="Semaine "+w;
     weekSelect.appendChild(opt);
   }
-  weekSelect.value = currentWeek;
+  weekSelect.value=currentWeek;
 }
-weekSelect.addEventListener("change", ()=>{
-  currentWeek = parseInt(weekSelect.value,10);
-  renderWeek();
-});
+weekSelect.addEventListener("change", ()=>{ currentWeek=parseInt(weekSelect.value,10); renderWeek(); });
 document.getElementById("prevWeek").addEventListener("click", ()=>{
-  const i = SCHOOL_ORDER.indexOf(currentWeek);
-  if(i>0){ currentWeek = SCHOOL_ORDER[i-1]; renderWeek(); }
+  const i=SCHOOL_ORDER.indexOf(currentWeek);
+  if(i>0){ currentWeek=SCHOOL_ORDER[i-1]; renderWeek(); }
 });
 document.getElementById("nextWeek").addEventListener("click", ()=>{
-  const i = SCHOOL_ORDER.indexOf(currentWeek);
-  if(i<SCHOOL_ORDER.length-1){ currentWeek = SCHOOL_ORDER[i+1]; renderWeek(); }
+  const i=SCHOOL_ORDER.indexOf(currentWeek);
+  if(i<SCHOOL_ORDER.length-1){ currentWeek=SCHOOL_ORDER[i+1]; renderWeek(); }
 });
 
 /* ========= MODAL ========= */
-const overlay = document.getElementById("overlay");
-const choices = document.getElementById("choices");
-let modalCtx = null;
+const overlay=document.getElementById("overlay");
+const choices=document.getElementById("choices");
+let modalCtx=null;
 
 function openModal(week, slot, day){
-  modalCtx = {week, slot, day};
-  document.getElementById("mTitle").textContent = slot + " — " + day;
-  document.getElementById("mSub").textContent = "Semaine " + week;
+  modalCtx={week,slot,day};
+  document.getElementById("mTitle").textContent = slot+" — "+day;
+  document.getElementById("mSub").textContent = "Semaine "+week;
 
-  const cur = getCell(week, slot, day);
-  choices.innerHTML = "";
+  const cur=getCell(week,slot,day);
+  choices.innerHTML="";
   for(const a of ACTIVITIES){
-    const b = document.createElement("button");
-    b.className = "choice" + (a===cur ? " sel":"");
+    const b=document.createElement("button");
+    b.className="choice"+(a===cur?" sel":"");
     b.style.background = COLORS[a] || "#444";
     b.style.color = (a==="Occupation") ? "#888" : "#0f0f0f";
-    b.textContent = a;
+    b.textContent=a;
     b.addEventListener("click", ()=>{
       choices.querySelectorAll(".choice").forEach(x=>x.classList.remove("sel"));
       b.classList.add("sel");
@@ -474,80 +430,63 @@ function openModal(week, slot, day){
   }
   overlay.classList.add("open");
 }
-function closeModal(){ overlay.classList.remove("open"); modalCtx = null; }
+function closeModal(){ overlay.classList.remove("open"); modalCtx=null; }
 document.getElementById("mCancel").addEventListener("click", closeModal);
-overlay.addEventListener("click", (e)=>{ if(e.target===overlay) closeModal(); });
+overlay.addEventListener("click",(e)=>{ if(e.target===overlay) closeModal(); });
 document.getElementById("mSave").addEventListener("click", ()=>{
-  const sel = choices.querySelector(".choice.sel");
-  if(!sel || !modalCtx) return;
+  const sel=choices.querySelector(".choice.sel");
+  if(!sel||!modalCtx) return;
   setCell(modalCtx.week, modalCtx.slot, modalCtx.day, sel.textContent);
-  closeModal();
-  renderWeek();
-  toast("Enregistré");
+  closeModal(); renderWeek(); toast("Enregistré");
 });
 
 /* ========= RENDER WEEK ========= */
 function renderWeek(){
-  document.getElementById("weekLabel").textContent = "Semaine " + currentWeek;
-  weekSelect.value = currentWeek;
+  document.getElementById("weekLabel").textContent="Semaine "+currentWeek;
+  weekSelect.value=currentWeek;
 
-  const table = document.getElementById("grid");
-  table.innerHTML = "";
+  const table=document.getElementById("grid");
+  table.innerHTML="";
 
-  const thead = document.createElement("thead");
-  const trh = document.createElement("tr");
-
-  const th0 = document.createElement("th");
-  th0.textContent = "Créneau";
-  trh.appendChild(th0);
-
+  const thead=document.createElement("thead");
+  const trh=document.createElement("tr");
+  const th0=document.createElement("th"); th0.textContent="Créneau"; trh.appendChild(th0);
   for(const d of DAYS){
-    const th = document.createElement("th");
-    th.textContent = d.slice(0,3).toUpperCase();
-    trh.appendChild(th);
+    const th=document.createElement("th"); th.textContent=d.slice(0,3).toUpperCase(); trh.appendChild(th);
   }
+  thead.appendChild(trh); table.appendChild(thead);
 
-  thead.appendChild(trh);
-  table.appendChild(thead);
-
-  const tbody = document.createElement("tbody");
-
+  const tbody=document.createElement("tbody");
   for(const slot of SLOTS){
-    const tr = document.createElement("tr");
-
-    const td0 = document.createElement("td");
-    td0.textContent = slot;
-    tr.appendChild(td0);
+    const tr=document.createElement("tr");
+    const td0=document.createElement("td"); td0.textContent=slot; tr.appendChild(td0);
 
     for(const day of DAYS){
-      const td = document.createElement("td");
-      const act = getCell(currentWeek, slot, day);
+      const td=document.createElement("td");
+      const act=getCell(currentWeek,slot,day);
 
-      const b = document.createElement("button");
-      b.className = "cell";
+      const b=document.createElement("button");
+      b.className="cell";
       b.style.background = COLORS[act] || "#444";
       b.style.color = (act==="Occupation") ? "#777" : "#0f0f0f";
       b.textContent = (act==="Occupation") ? "" : act;
-      b.addEventListener("click", ()=>openModal(currentWeek, slot, day));
+      b.addEventListener("click", ()=>openModal(currentWeek,slot,day));
 
-      td.appendChild(b);
-      tr.appendChild(td);
+      td.appendChild(b); tr.appendChild(td);
     }
-
     tbody.appendChild(tr);
   }
-
   table.appendChild(tbody);
 }
 
 /* ========= VACANCES ========= */
 function renderVac(){
-  const wrap = document.getElementById("vacWeeks");
-  wrap.innerHTML = "";
+  const wrap=document.getElementById("vacWeeks");
+  wrap.innerHTML="";
   for(const w of SCHOOL_ORDER){
-    const chip = document.createElement("div");
-    chip.className = "week" + (vacances.has(w) ? " vac" : "");
-    chip.textContent = "S" + w;
+    const chip=document.createElement("div");
+    chip.className="week"+(vacances.has(w)?" vac":"");
+    chip.textContent="S"+w;
     chip.addEventListener("click", ()=>{
       if(vacances.has(w)) vacances.delete(w); else vacances.add(w);
       localStorage.setItem(LS_VAC, JSON.stringify(Array.from(vacances)));
@@ -557,28 +496,26 @@ function renderVac(){
   }
 }
 document.getElementById("resetVac").addEventListener("click", ()=>{
-  vacances = new Set();
-  localStorage.setItem(LS_VAC, "[]");
+  vacances=new Set();
+  localStorage.setItem(LS_VAC,"[]");
   renderVac(); renderStats();
 });
 
-/* ========= STATS CONTROLS (sync) ========= */
-const workedRange = document.getElementById("workedRange");
-const workedInput = document.getElementById("workedInput");
-const workedLabel = document.getElementById("workedLabel");
+/* ========= STATS CONTROLS (diviseur only) ========= */
+const workedRange=document.getElementById("workedRange");
+const workedInput=document.getElementById("workedInput");
+const workedLabel=document.getElementById("workedLabel");
 
 function clampWeeks(v){
-  const min = parseInt(workedRange.min,10);
-  const max = parseInt(workedRange.max,10);
-  v = parseInt(v,10);
-  if(isNaN(v)) v = min;
+  const min=parseInt(workedRange.min,10), max=parseInt(workedRange.max,10);
+  v=parseInt(v,10); if(isNaN(v)) v=min;
   return Math.max(min, Math.min(max, v));
 }
 function setWeeksWorked(v){
-  const val = clampWeeks(v);
-  workedRange.value = String(val);
-  workedInput.value = String(val);
-  workedLabel.textContent = String(val);
+  const val=clampWeeks(v);
+  workedRange.value=String(val);
+  workedInput.value=String(val);
+  workedLabel.textContent=String(val);
   renderStats();
 }
 workedRange.addEventListener("input", ()=>setWeeksWorked(workedRange.value));
@@ -590,73 +527,58 @@ workedInput.addEventListener("blur", ()=>{
   if(workedInput.value==="") setWeeksWorked(workedRange.value);
 });
 
-const periodSelect = document.getElementById("periodSelect");
-const globalExpectedInput = document.getElementById("globalExpected");
-const globalStatus = document.getElementById("globalStatus");
-const warnPctInput = document.getElementById("warnPct");
-const alertPctInput = document.getElementById("alertPct");
+const periodSelect=document.getElementById("periodSelect");
+const globalExpectedInput=document.getElementById("globalExpected");
+const globalStatus=document.getElementById("globalStatus");
+const warnPctInput=document.getElementById("warnPct");
+const alertPctInput=document.getElementById("alertPct");
 
 warnPctInput.value = objectifs.thresholds.warnPct ?? 90;
 alertPctInput.value = objectifs.thresholds.alertPct ?? 110;
 
 warnPctInput.addEventListener("change", ()=>{
-  objectifs.thresholds.warnPct = Math.max(50, Math.min(99, Number(warnPctInput.value)||90));
-  warnPctInput.value = objectifs.thresholds.warnPct;
+  objectifs.thresholds.warnPct=Math.max(50,Math.min(99,Number(warnPctInput.value)||90));
+  warnPctInput.value=objectifs.thresholds.warnPct;
   saveObjectifs(); renderStats();
 });
 alertPctInput.addEventListener("change", ()=>{
-  objectifs.thresholds.alertPct = Math.max(100, Math.min(300, Number(alertPctInput.value)||110));
-  alertPctInput.value = objectifs.thresholds.alertPct;
+  objectifs.thresholds.alertPct=Math.max(100,Math.min(300,Number(alertPctInput.value)||110));
+  alertPctInput.value=objectifs.thresholds.alertPct;
   saveObjectifs(); renderStats();
 });
 periodSelect.addEventListener("change", renderStats);
 
 /* ========= STATS CORE ========= */
-function activeWeeks(period){
-  // ✅ Ne limite plus par le curseur : retourne TOUTES les semaines de la période (hors vacances)
+// ✅ Le curseur NE FILTRE PLUS les semaines : on compte toutes les semaines de la période (hors vacances)
+function weeksForPeriod(period){
   const base = (PERIODS[period] || PERIODS.school);
   return base.filter(w => !vacances.has(w));
 }
-function countActivities(weeks){
-  const counts = {};
+function countActivitiesForWeeks(weeks){
+  const counts={};
   for(const a of ACTIVITIES) if(a!=="Occupation") counts[a]=0;
+
   for(const w of weeks){
     for(const slot of SLOTS){
       for(const day of DAYS){
-        const a = getCell(w,slot,day);
-        if(a !== "Occupation") counts[a] = (counts[a]||0)+1;
+        const a=getCell(w,slot,day);
+        if(a!=="Occupation") counts[a]=(counts[a]||0)+1;
       }
     }
   }
   return counts;
 }
 function renderSpark(points){
-  const container = document.getElementById("spark");
+  const container=document.getElementById("spark");
   if(points.length===0){ container.innerHTML=""; return; }
-
-  const W=520, H=140, pad={l:28,r:10,t:10,b:24};
-  const iw=W-pad.l-pad.r, ih=H-pad.t-pad.b;
-  const maxV = Math.max(1, ...points.map(p=>p.n));
-  const stepX = iw / Math.max(1, points.length-1);
-
-  const coords = points.map((p,i)=>{
-    const x = pad.l + i*stepX;
-    const y = pad.t + ih - (p.n/maxV)*ih;
-    return [x,y];
-  });
-
-  const line = coords.map(c=>c.join(",")).join(" ");
-  const area = `M ${pad.l},${pad.t+ih} L ${coords.map(c=>c.join(",")).join(" L ")} L ${pad.l+(points.length-1)*stepX},${pad.t+ih} Z`;
-
-  const yTicks = [0, Math.round(maxV/2), maxV].map(v=>{
-    const y = pad.t + ih - (v/maxV)*ih;
-    return `<line x1="${pad.l}" y1="${y}" x2="${pad.l+iw}" y2="${y}" stroke="#2c2c2c"/>
-            <text x="${pad.l-6}" y="${y+4}" font-size="10" fill="#8b8b8b" text-anchor="end">${v}</text>`;
-  }).join("");
-
+  const W=520,H=140,pad={l:28,r:10,t:10,b:24},iw=W-pad.l-pad.r,ih=H-pad.t-pad.b;
+  const maxV=Math.max(1,...points.map(p=>p.n));
+  const stepX=iw/Math.max(1,points.length-1);
+  const coords=points.map((p,i)=>[pad.l+i*stepX, pad.t+ih-(p.n/maxV)*ih]);
+  const line=coords.map(c=>c.join(",")).join(" ");
+  const area=`M ${pad.l},${pad.t+ih} L ${coords.map(c=>c.join(",")).join(" L ")} L ${pad.l+(points.length-1)*stepX},${pad.t+ih} Z`;
   container.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}">
-      ${yTicks}
       <path d="${area}" fill="rgba(200,245,58,.08)"></path>
       <polyline points="${line}" fill="none" stroke="#c8f53a" stroke-width="2"></polyline>
       ${coords.map(c=>`<circle cx="${c[0]}" cy="${c[1]}" r="3" fill="#c8f53a"></circle>`).join("")}
@@ -668,44 +590,44 @@ function renderStats(){
   const period = periodSelect.value;
   document.getElementById("vacCount").textContent = vacances.size;
 
-// ✅ Toutes les semaines de la période sont comptées (pas limité par le curseur)
-const weeks = activeWeeks(period);
+  const warnPct = objectifs.thresholds.warnPct ?? 90;
+  const alertPct = objectifs.thresholds.alertPct ?? 110;
 
-// ✅ Pour l’année scolaire, on ajoute le bonus été au numérateur (heures en plus)
-// mais on ne change PAS le diviseur.
-let weeksForNumerator = weeks.slice();
-if (period === "school") {
-  const bonusWeeks = (PERIODS.bonus || []).filter(w => !vacances.has(w));
-  weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...bonusWeeks]);
-}
+  // semaines du trimestre choisi (hors vacances)
+  const baseWeeks = weeksForPeriod(period);
 
-const counts = countActivitiesForWeeks(weeksForNumerator);
+  // Année scolaire : ajoute bonus été AU NUMÉRATEUR (heures en plus) sans changer le diviseur
+  let weeksForNumerator = baseWeeks.slice();
+  if(period === "school"){
+    const bonusWeeks = weeksForPeriod("bonus");
+    weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...bonusWeeks]);
+  }
 
-  const chosenWeeks = clampWeeks(workedInput.value || workedRange.value);
-  const avg = totalReal / Math.max(1, chosenWeeks);
+  const counts = countActivitiesForWeeks(weeksForNumerator);
+  const totalReal = Object.values(counts).reduce((s,v)=>s+v,0);
+
+  const divisor = clampWeeks(workedInput.value || workedRange.value);
+  const avg = totalReal / Math.max(1, divisor);
 
   document.getElementById("totalReal").textContent = String(totalReal);
   document.getElementById("avgPerWeek").textContent = avg.toFixed(1);
 
-  const warnPct = objectifs.thresholds.warnPct ?? 90;
-  const alertPct = objectifs.thresholds.alertPct ?? 110;
+  // objectifs par activité
+  const perAct = objectifs.perActivity[period] ||= {};
 
-  // objectifs par activité pour la période
-const perAct = (objectifs.perActivity[period] ||= {});
-
-  // objectif global : manuel si saisi, sinon auto = somme des attendus par activité
+  // objectif global auto = somme des attendus par activité si champ global vide
   const storedGlobal = Number(objectifs.global?.[period] || 0);
   const sumPerAct = Object.values(perAct).map(Number).filter(v=>!isNaN(v)&&v>0).reduce((a,b)=>a+b,0);
   const effectiveGlobal = storedGlobal > 0 ? storedGlobal : sumPerAct;
 
   globalExpectedInput.value = storedGlobal > 0 ? String(storedGlobal) : "";
   globalExpectedInput.placeholder = sumPerAct>0 ? `auto : ${sumPerAct}` : "—";
-
   globalExpectedInput.oninput = ()=>{
     const v = Number(globalExpectedInput.value);
-    if(!globalExpectedInput.value || isNaN(v) || v<=0) objectifs.global[period]=0; // auto
+    if(!globalExpectedInput.value || isNaN(v) || v<=0) objectifs.global[period]=0;
     else objectifs.global[period]=Math.round(v);
-    saveObjectifs(); renderStats();
+    saveObjectifs();
+    scheduleStatsRefresh();
   };
 
   function globalStatusHTML(real, exp){
@@ -719,135 +641,102 @@ const perAct = (objectifs.perActivity[period] ||= {});
   }
   globalStatus.innerHTML = globalStatusHTML(totalReal, effectiveGlobal);
 
-  // --- Barre visuelle globale ---
-  const globalFill = document.getElementById("globalFill");
-  const globalBarText = document.getElementById("globalBarText");
-
+  // barre globale
+  const globalFill=document.getElementById("globalFill");
+  const globalBarText=document.getElementById("globalBarText");
   globalFill.classList.remove("global-warn","global-ok","global-alert");
-  globalFill.style.background = "var(--dim)";
+  globalFill.style.background="var(--dim)";
 
   if(!effectiveGlobal || effectiveGlobal<=0){
-    globalFill.style.width = "0%";
-    globalBarText.textContent = "Objectif global non défini";
+    globalFill.style.width="0%";
+    globalBarText.textContent="Objectif global non défini";
   } else {
-    const pct = Math.round((totalReal / effectiveGlobal) * 100);
-    const diff = totalReal - effectiveGlobal;
-    const width = Math.min(100, (totalReal / effectiveGlobal) * 100);
-    globalFill.style.width = width.toFixed(1) + "%";
-
-    if(pct >= alertPct) globalFill.classList.add("global-alert");
-    else if(pct >= 100) globalFill.classList.add("global-ok");
-    else if(pct >= warnPct) globalFill.classList.add("global-warn");
-
-    if(diff > 0) globalBarText.textContent = `${pct}%  (+${diff} h)`;
-    else if(diff < 0) globalBarText.textContent = `${pct}%  (reste ${Math.abs(diff)} h)`;
-    else globalBarText.textContent = `100%  (objectif atteint)`;
+    const pct=Math.round((totalReal/effectiveGlobal)*100);
+    const diff=totalReal-effectiveGlobal;
+    globalFill.style.width = Math.min(100,(totalReal/effectiveGlobal)*100).toFixed(1)+"%";
+    if(pct>=alertPct) globalFill.classList.add("global-alert");
+    else if(pct>=100) globalFill.classList.add("global-ok");
+    else if(pct>=warnPct) globalFill.classList.add("global-warn");
+    globalBarText.textContent = diff>0 ? `${pct}% (+${diff} h)` : diff<0 ? `${pct}% (reste ${Math.abs(diff)} h)` : `100% (atteint)`;
   }
 
-  // Liste activités à afficher : celles réalisées OU celles avec attendu
+  // barres par activité
   const setActs = new Set(Object.keys(counts).filter(a=>counts[a]>0));
   Object.keys(perAct).forEach(a=>setActs.add(a));
-
   const list = Array.from(setActs).filter(a=>a && a!=="Occupation");
   list.sort((a,b)=>(counts[b]||0)-(counts[a]||0) || a.localeCompare(b));
-
   const maxReal = Math.max(1, ...list.map(a=>counts[a]||0));
-  const bars = document.getElementById("bars");
-  bars.innerHTML = "";
+  const bars=document.getElementById("bars");
+  bars.innerHTML="";
 
-  if(list.length === 0){
-    bars.innerHTML = `<div class="hint">Aucune donnée : commence par saisir ou importer.</div>`;
+  if(list.length===0){
+    bars.innerHTML=`<div class="hint">Aucune donnée : importe des semaines ou renseigne des attendus.</div>`;
   } else {
-    list.forEach(act=>{
-      const real = counts[act] || 0;
-      const exp = perAct[act] ? Number(perAct[act]) : 0;
-      const pct = exp>0 ? Math.round((real/exp)*100) : null;
-      const diff = exp>0 ? (real-exp) : null;
+    for(const act of list){
+      const real=counts[act]||0;
+      const exp=perAct[act]?Number(perAct[act]):0;
+      const pct=exp>0?Math.round((real/exp)*100):null;
+      const diff=exp>0?(real-exp):null;
 
       let widthPct = exp>0 ? Math.min(100,(real/exp)*100) : (real/maxReal)*100;
 
       let cls="", badge="";
       if(exp>0 && pct!==null){
-        if(pct >= alertPct){ cls="alert"; badge=`<span class="badge b-alert">ALERTE</span>`; }
-        else if(pct >= 100){ cls="ok"; badge=`<span class="badge b-ok">OK</span>`; }
-        else if(pct >= warnPct){ cls="warn"; badge=`<span class="badge b-warn">PROCHE</span>`; }
+        if(pct>=alertPct){ cls="alert"; badge=`<span class="badge b-alert">ALERTE</span>`; }
+        else if(pct>=100){ cls="ok"; badge=`<span class="badge b-ok">OK</span>`; }
+        else if(pct>=warnPct){ cls="warn"; badge=`<span class="badge b-warn">PROCHE</span>`; }
       }
 
-      const row = document.createElement("div");
-      row.className = `barrow ${cls}`;
+      const row=document.createElement("div");
+      row.className=`barrow ${cls}`;
 
-      const label = document.createElement("div");
-      label.className = "barname";
-      label.title = act;
-      label.innerHTML = `${act}${badge}`;
+      const label=document.createElement("div");
+      label.className="barname";
+      label.title=act;
+      label.innerHTML=`${act}${badge}`;
 
-      const track = document.createElement("div");
-      track.className = "track";
-      const fill = document.createElement("div");
-      fill.className = "fill";
-      fill.style.width = widthPct.toFixed(1) + "%";
-      fill.style.background = COLORS[act] || "#444";
+      const track=document.createElement("div");
+      track.className="track";
+      const fill=document.createElement("div");
+      fill.className="fill";
+      fill.style.width=widthPct.toFixed(1)+"%";
+      fill.style.background=COLORS[act]||"#444";
       track.appendChild(fill);
 
-      const value = document.createElement("div");
-      value.className = "barval";
+      const value=document.createElement("div");
+      value.className="barval";
       if(exp>0){
-        if(diff>0) value.innerHTML = `<span style="color:var(--danger);font-weight:900">${real} / ${exp} (${pct}%) – +${diff} h</span>`;
-        else if(diff<0) value.innerHTML = `<span style="color:var(--dim)">${real} / ${exp} (${pct}%) – reste ${Math.abs(diff)} h</span>`;
-        else value.innerHTML = `<span style="color:var(--ok);font-weight:900">${real} / ${exp} (100%) – atteint</span>`;
-      } else {
-        value.textContent = `${real}`;
-      }
+        if(diff>0) value.innerHTML=`<span style="color:var(--danger);font-weight:900">${real} / ${exp} (${pct}%) – +${diff} h</span>`;
+        else if(diff<0) value.innerHTML=`<span style="color:var(--dim)">${real} / ${exp} (${pct}%) – reste ${Math.abs(diff)} h</span>`;
+        else value.innerHTML=`<span style="color:var(--ok);font-weight:900">${real} / ${exp} (100%) – atteint</span>`;
+      } else value.textContent=`${real}`;
 
-      const expBox = document.createElement("div");
-      expBox.className = "expbox";
-      const lab = document.createElement("label");
-      lab.textContent = "Attendu";
-      // --- BEGIN Attendu input (live update iPad) ---
-const inp = document.createElement("input");
-inp.type = "number";
-inp.min = "0";
-inp.step = "1";
-inp.placeholder = "—";
-inp.value = exp > 0 ? String(exp) : "";
+      const expBox=document.createElement("div");
+      expBox.className="expbox";
+      const lab=document.createElement("label");
+      lab.textContent="Attendu";
+      const inp=document.createElement("input");
+      inp.type="number"; inp.min="0"; inp.step="1"; inp.placeholder="—";
+      inp.value=exp>0?String(exp):"";
 
-const applyExpected = () => {
-  const v = Number(inp.value);
-  if (!inp.value || isNaN(v) || v <= 0) {
-    delete objectifs.perActivity[period][act];
-  } else {
-    objectifs.perActivity[period][act] = Math.round(v);
-  }
-  saveObjectifs();
-};
+      const applyExpected=()=>{
+        const v=Number(inp.value);
+        if(!inp.value||isNaN(v)||v<=0) delete objectifs.perActivity[period][act];
+        else objectifs.perActivity[period][act]=Math.round(v);
+        saveObjectifs();
+      };
+      inp.addEventListener("input", ()=>{ applyExpected(); scheduleStatsRefresh(); });
+      inp.addEventListener("blur", ()=>{ applyExpected(); renderStats(); });
+      inp.addEventListener("change", ()=>{ applyExpected(); renderStats(); });
 
-// Pendant la saisie : mise à jour douce (évite de casser le focus)
-inp.addEventListener("input", () => {
-  applyExpected();
-  scheduleStatsRefresh();
-});
-
-// Quand on quitte le champ : mise à jour immédiate
-inp.addEventListener("blur", () => {
-  applyExpected();
-  renderStats();
-});
-
-// Sécurité : certains claviers déclenchent "change" à la validation
-inp.addEventListener("change", () => {
-  applyExpected();
-  renderStats();
-});
-
-expBox.appendChild(inp);
-// --- END Attendu input (live update iPad) ---
+      expBox.appendChild(lab); expBox.appendChild(inp);
 
       row.appendChild(label); row.appendChild(track); row.appendChild(value); row.appendChild(expBox);
       bars.appendChild(row);
-    });
+    }
   }
 
-  const pts = weeks.map(w=>{
+  const pts = baseWeeks.map(w=>{
     let n=0;
     for(const slot of SLOTS) for(const day of DAYS) if(getCell(w,slot,day)!=="Occupation") n++;
     return {w,n};
@@ -857,24 +746,22 @@ expBox.appendChild(inp);
 
 /* ========= JSON EXPORT / IMPORT ========= */
 document.getElementById("btnExportJson").addEventListener("click", ()=>{
-  const payload = { overrides, vacances: Array.from(vacances), objectifs, ui: { workedWeeks: clampWeeks(workedInput.value||workedRange.value), period: periodSelect.value } };
+  const payload = { overrides, vacances:Array.from(vacances), objectifs };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "planning_scolaire_donnees.json";
-  a.click();
-  URL.revokeObjectURL(a.href);
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="planning_scolaire_donnees.json";
+  a.click(); URL.revokeObjectURL(a.href);
 });
-
 document.getElementById("importFile").addEventListener("change", async (e)=>{
-  const file = e.target.files && e.target.files[0];
+  const file=e.target.files&&e.target.files[0];
   if(!file) return;
-  const text = await file.text();
+  const text=await file.text();
   try{
-    const payload = JSON.parse(text);
-    if(payload.overrides) overrides = payload.overrides;
-    if(payload.vacances) vacances = new Set(payload.vacances);
-    if(payload.objectifs) objectifs = payload.objectifs;
+    const payload=JSON.parse(text);
+    if(payload.overrides) overrides=payload.overrides;
+    if(payload.vacances) vacances=new Set(payload.vacances);
+    if(payload.objectifs) objectifs=payload.objectifs;
     localStorage.setItem(LS_OVR, JSON.stringify(overrides));
     localStorage.setItem(LS_VAC, JSON.stringify(Array.from(vacances)));
     saveObjectifs();
@@ -887,64 +774,53 @@ document.getElementById("importFile").addEventListener("change", async (e)=>{
   }
 });
 
-/* ========= CSV IMPORT (weekly files) ========= */
+/* ========= CSV IMPORT (hebdo) ========= */
+// Format supporté : ;Lundi;Mardi;... puis lignes "M1;Occupation;..." (ex S35) 
 function detectDelimiter(line){
-  const semis = (line.match(/;/g)||[]).length;
-  const commas = (line.match(/,/g)||[]).length;
-  return semis >= commas ? ";" : ",";
+  const semis=(line.match(/;/g)||[]).length;
+  const commas=(line.match(/,/g)||[]).length;
+  return semis>=commas?";":",";
 }
 function parseCSV(text){
-  const lines = text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
+  const lines=text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
   if(lines.length===0) return {header:[], rows:[]};
-  const delim = detectDelimiter(lines[0]);
-  const rows = [];
+  const delim=detectDelimiter(lines[0]);
+  const rows=[];
   for(const rawLine of lines){
     const out=[]; let cur=""; let inQ=false;
     for(let i=0;i<rawLine.length;i++){
       const ch=rawLine[i];
       if(ch === '"'){
         if(inQ && rawLine[i+1] === '"'){ cur+='"'; i++; }
-        else inQ = !inQ;
-      } else if(ch === delim && !inQ){
+        else inQ=!inQ;
+      } else if(ch===delim && !inQ){
         out.push(cur); cur="";
-      } else cur += ch;
+      } else cur+=ch;
     }
-    out.push(cur);
-    rows.push(out.map(x=>x.trim()));
+    out.push(cur); rows.push(out.map(x=>x.trim()));
   }
   return {header: rows[0], rows: rows.slice(1)};
 }
 function weekFromFilename(name){
-  const m = (name||"").match(/semaine\s*(\d{1,2})/i);
-  if(m) return parseInt(m[1],10);
-  const n = (name||"").match(/(\d{1,2})/);
-  if(n){
-    const v = parseInt(n[1],10);
-    if(v>=1 && v<=52) return v;
-  }
-  return null;
+  const m=(name||"").match(/semaine\s*(\d{1,2})/i);
+  return m ? parseInt(m[1],10) : null;
 }
-
 function importWeeklyCSV(text, filename){
-  const {header, rows} = parseCSV(text);
-  const week = weekFromFilename(filename);
+  const {header, rows}=parseCSV(text);
+  const week=weekFromFilename(filename);
   if(!week){ toast("CSV : numéro de semaine introuvable"); return; }
 
-  const h = header.map(x=>normSpace(fixText(x)).toLowerCase());
+  const h=header.map(x=>normSpace(fixText(x)).toLowerCase());
   const looksWeekly = h.includes("lundi") && h.includes("mardi") && h.includes("mercredi") && h.includes("jeudi") && h.includes("vendredi");
-  if(!looksWeekly){
-    toast("CSV non reconnu (pas un tableau hebdo)");
-    return;
-  }
+  if(!looksWeekly){ toast("CSV non reconnu (pas un tableau hebdo)"); return; }
 
   let count=0;
   for(const r of rows){
-    const slot = normSpace(fixText(r[0]||""));
+    const slot=normSpace(fixText(r[0]||""));
     if(!slot) continue;
-
     for(let i=0;i<7;i++){
-      let v = normSpace(fixText(r[i+1]||""));
-      if(v==="" || v.toLowerCase()==="nan") v="Occupation";
+      let v=normSpace(fixText(r[i+1]||""));
+      if(v===""||v.toLowerCase()==="nan") v="Occupation";
       setCell(week, slot, DAYS[i], v);
       count++;
     }
@@ -953,10 +829,10 @@ function importWeeklyCSV(text, filename){
 }
 
 document.getElementById("importCSV").addEventListener("change", async (e)=>{
-  const files = e.target.files ? Array.from(e.target.files) : [];
+  const files=e.target.files?Array.from(e.target.files):[];
   if(!files.length) return;
   for(const f of files){
-    const text = await f.text();
+    const text=await f.text();
     importWeeklyCSV(text, f.name);
   }
   localStorage.setItem(LS_OVR, JSON.stringify(overrides));
@@ -966,41 +842,43 @@ document.getElementById("importCSV").addEventListener("change", async (e)=>{
 
 /* ========= STATS CSV EXPORT ========= */
 document.getElementById("btnExportCsv").addEventListener("click", ()=>{
-  const period = periodSelect.value;
-  const weeks = activeWeeks(period);
-  const counts = countActivities(weeks);
-  const totalReal = Object.values(counts).reduce((s,v)=>s+v,0);
-  const chosenWeeks = clampWeeks(workedInput.value||workedRange.value);
-  const avg = totalReal / Math.max(1, chosenWeeks);
+  const period=periodSelect.value;
+  const baseWeeks = weeksForPeriod(period);
+  let weeksForNumerator = baseWeeks.slice();
+  if(period==="school"){
+    weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...weeksForPeriod("bonus")]);
+  }
+  const counts=countActivitiesForWeeks(weeksForNumerator);
+  const totalReal=Object.values(counts).reduce((s,v)=>s+v,0);
+  const divisor=clampWeeks(workedInput.value||workedRange.value);
+  const avg=totalReal/Math.max(1,divisor);
 
-  const perAct = objectifs.perActivity?.[period] || {};
+  const perAct = objectifs.perActivity[period] || {};
   const acts = new Set(Object.keys(counts));
   Object.keys(perAct).forEach(a=>acts.add(a));
 
-  const rows = [
+  const rows=[
     ["Periode", period],
-    ["Semaines (choisi)", String(chosenWeeks)],
+    ["Diviseur (semaines)", String(divisor)],
     ["Total realise", String(totalReal)],
     ["Moyenne / semaine", avg.toFixed(1)],
     [],
     ["Activite","Realise","Attendu","%","Ecart"]
   ];
-
-  Array.from(acts).filter(a=>a && a!=="Occupation").sort().forEach(a=>{
-    const real = counts[a] || 0;
-    const exp = perAct[a] ? Number(perAct[a]) : 0;
-    const pct = exp>0 ? Math.round((real/exp)*100) : "";
-    const diff = exp>0 ? (real-exp) : "";
-    rows.push([a, String(real), exp>0?String(exp):"", pct!==""?String(pct):"", diff!==""?String(diff):""]);
+  Array.from(acts).filter(a=>a&&a!=="Occupation").sort().forEach(a=>{
+    const real=counts[a]||0;
+    const exp=perAct[a]?Number(perAct[a]):0;
+    const pct=exp>0?Math.round((real/exp)*100):"";
+    const diff=exp>0?(real-exp):"";
+    rows.push([a,String(real),exp>0?String(exp):"",pct!==""?String(pct):"",diff!==""?String(diff):""]);
   });
 
-  const csv = rows.map(r=>r.join(";")).join("\n");
-  const blob = new Blob([csv], {type:"text/csv"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "stats_planning_scolaire.csv";
-  a.click();
-  URL.revokeObjectURL(a.href);
+  const csv=rows.map(r=>r.join(";")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="stats_planning_scolaire.csv";
+  a.click(); URL.revokeObjectURL(a.href);
 });
 
 /* ========= INIT ========= */
