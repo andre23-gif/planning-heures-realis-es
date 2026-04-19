@@ -326,6 +326,17 @@ function toast(msg){
   t.classList.add("show");
   setTimeout(()=>t.classList.remove("show"), 1600);
 }
+  
+// --- BEGIN scheduleStatsRefresh (anti-saut iPad) ---
+let _statsTimer = null;
+function scheduleStatsRefresh(){
+  clearTimeout(_statsTimer);
+  _statsTimer = setTimeout(() => {
+    try { renderStats(); } catch(e) {}
+  }, 200);
+}
+// --- END scheduleStatsRefresh ---
+
 function k(week, slot, day){ return `S${week}|${slot}|${day}`; }
 function getCell(week, slot, day){
   const key = k(week,slot,day);
@@ -765,22 +776,44 @@ function renderStats(){
       expBox.className = "expbox";
       const lab = document.createElement("label");
       lab.textContent = "Attendu";
-      const inp = document.createElement("input");
-      inp.type="number"; inp.min="0"; inp.step="1"; inp.placeholder="—";
-      inp.value = exp>0 ? String(exp) : "";
+      // --- BEGIN Attendu input (live update iPad) ---
+const inp = document.createElement("input");
+inp.type = "number";
+inp.min = "0";
+inp.step = "1";
+inp.placeholder = "—";
+inp.value = exp > 0 ? String(exp) : "";
 
-      const applyExpected = () => {
-        const v = Number(inp.value);
-        if(!inp.value || isNaN(v) || v<=0) delete objectifs.perActivity[period][act];
-        else objectifs.perActivity[period][act] = Math.round(v);
-        saveObjectifs();
-        renderStats();
-      };
-      inp.addEventListener("input", applyExpected);
-      inp.addEventListener("change", applyExpected);
-      inp.addEventListener("blur", applyExpected);
+const applyExpected = () => {
+  const v = Number(inp.value);
+  if (!inp.value || isNaN(v) || v <= 0) {
+    delete objectifs.perActivity[period][act];
+  } else {
+    objectifs.perActivity[period][act] = Math.round(v);
+  }
+  saveObjectifs();
+};
 
-      expBox.appendChild(lab); expBox.appendChild(inp);
+// Pendant la saisie : mise à jour douce (évite de casser le focus)
+inp.addEventListener("input", () => {
+  applyExpected();
+  scheduleStatsRefresh();
+});
+
+// Quand on quitte le champ : mise à jour immédiate
+inp.addEventListener("blur", () => {
+  applyExpected();
+  renderStats();
+});
+
+// Sécurité : certains claviers déclenchent "change" à la validation
+inp.addEventListener("change", () => {
+  applyExpected();
+  renderStats();
+});
+
+expBox.appendChild(inp);
+// --- END Attendu input (live update iPad) ---
 
       row.appendChild(label); row.appendChild(track); row.appendChild(value); row.appendChild(expBox);
       bars.appendChild(row);
