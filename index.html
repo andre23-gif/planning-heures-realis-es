@@ -560,7 +560,25 @@ function renderStats(){
 
       const value = document.createElement("div");
       value.className = "barval";
-      value.textContent = exp && exp > 0 ? `${real} / ${exp}` : `${real}`;
+     
+if (exp && exp > 0) {
+  const diff = real - exp;
+  if (diff > 0) {
+    value.innerHTML = `<span style="color:#ff6b6b;font-weight:900">
+      ${real} / ${exp} (+${diff})
+    </span>`;
+  } else if (diff < 0) {
+    value.innerHTML = `<span style="color:#8b8b8b">
+      ${real} / ${exp} (reste ${Math.abs(diff)})
+    </span>`;
+  } else {
+    value.innerHTML = `<span style="color:#c8f53a;font-weight:900">
+      ${real} / ${exp} (objectif atteint)
+    </span>`;
+  }
+} else {
+  value.textContent = `${real}`;
+}
 
       const expBox = document.createElement("div");
       expBox.className = "expbox";
