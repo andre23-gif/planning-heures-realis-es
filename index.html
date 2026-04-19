@@ -950,7 +950,92 @@ function parseCSV(text){
   return {header: rows[0], rows: rows.slice(1)};
 }
 
+function normalizeHeader(s){
+  return (s || "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    // enlève accents
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    // enlève ponctuation et symboles (dont °)
+    .replace(/[^a-z0-9 ]+/g, " ")
+    // espace unique
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function findCol(header, candidates){
+  const norm = header.map(normalizeHeader);
+  for(const cand of candidates){
+    const c = normalizeHeader(cand);
+    let idx = norm.indexOf(c);
+    if(idx >= 0) return idx;
+
+    // match “contient” (utile si Numbers ajoute du texte)
+    idx = norm.findIndex(h => h.includes(c));
+    if(idx >= 0) return idx;
+  }
+  return -1;
+}
+
 function importFromCSV(text){
+  const {header, rows} = parseCSV(text);
+
+  // variantes possibles (Numbers / Excel / etc.)
+  const iWeek = findCol(header, [
+    "n semaine","no semaine","numero semaine","num semaine","semaine","n° semaine","n°semaine"
+  ]);
+
+  const iSlot = findCol(header, [
+    "creneau","créneau","creneaux","créneaux","slot"
+  ]);
+
+  const days = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+
+  // variantes jours (Lun / Lun. / Lundi etc.)
+  const dayIdx = [
+    findCol(header, ["lundi","lun","lun."]),
+    findCol(header, ["mardi","mar","mar."]),
+    findCol(header, ["mercredi","mer","mer."]),
+    findCol(header, ["jeudi","jeu","jeu."]),
+    findCol(header, ["vendredi","ven","ven."]),
+    findCol(header, ["samedi","sam","sam."]),
+    findCol(header, ["dimanche","dim","dim."])
+  ];
+
+  // Vérification + message plus utile
+  const missing = [];
+  if(iWeek < 0) missing.push("N° Semaine");
+  if(iSlot < 0) missing.push("Créneau");
+  const dayNames = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+  dayIdx.forEach((i, k) => { if(i < 0) missing.push(dayNames[k]); });
+
+  if(missing.length){
+    toast("CSV non reconnu : " + missing.join(", "));
+    return;
+  }
+
+  let count = 0;
+
+  for(const r of rows){
+    const w = parseInt((r[iWeek]||"").trim(), 10);
+    const slot = (r[iSlot]||"").trim();
+    if(!w || !slot) continue;
+
+    days.forEach((d, di)=>{
+      let v = (r[dayIdx[di]]||"").trim();
+      if(v === "" || v.toLowerCase() === "nan") v = "Occupation";
+      setCell(w, slot, d, v);
+      count++;
+    });
+  }
+
+  toast(`Import CSV OK (${count} cellules)`);
+  renderWeek();
+  renderVac();
+  renderStats();
+}
+
   const {header, rows} = parseCSV(text);
 
   const col = name => header.findIndex(h=>h.toLowerCase()===name.toLowerCase());
