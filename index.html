@@ -1803,6 +1803,309 @@ renderStats();
 
 })();
 /* ===== END ONGLET "PRÉ-REMPLISSAGE" ===== */
+
+/* ===== BEGIN "STATISTIQUES SIMPLES" (période + activités à cocher + barres + camembert) + suppression Vacances ===== */
+(function(){
+  // --- Références robustes (fonctionne même si const globaux non attachés à window)
+  const ACTIVITIES_REF = (typeof ACTIVITIES !== "undefined") ? ACTIVITIES : null;
+  const COLORS_REF = (typeof COLORS !== "undefined") ? COLORS : {};
+  const SLOTS_REF = (typeof SLOTS !== "undefined") ? SLOTS : null;
+  const DAYS_REF  = (typeof DAYS  !== "undefined") ? DAYS  : null;
+  const getCell_REF = (typeof getCell === "function") ? getCell : null;
+  const weeksForPeriod_REF = (typeof weeksForPeriod === "function") ? weeksForPeriod : null;
+
+  if(!ACTIVITIES_REF || !SLOTS_REF || !DAYS_REF || !getCell_REF || !weeksForPeriod_REF){
+    console.warn("Stats simples: dépendances manquantes (ACTIVITIES/SLOTS/DAYS/getCell/weeksForPeriod).");
+    return;
+  }
+
+  // --- 0) SUPPRIMER l’onglet Vacances + sa page
+  const vacTab = document.querySelector('.tabs [data-view="vacances"]');
+  if(vacTab) vacTab.remove();
+  const vacView = document.getElementById("view-vacances");
+  if(vacView) vacView.remove();
+
+  // --- 1) Re-router l'onglet Statistiques existant vers "stats_simple"
+  const statsTab = document.querySelector('.tabs [data-view="stats"]');
+  if(statsTab){
+    statsTab.dataset.view = "stats_simple";
+    statsTab.textContent = "Statistiques";
+  } else {
+    // Si jamais l’onglet n’existe pas, on le crée
+    const tabs = document.querySelector(".tabs");
+    if(tabs){
+      const t = document.createElement("button");
+      t.className = "tab";
+      t.dataset.view = "stats_simple";
+      t.textContent = "Statistiques";
+      tabs.appendChild(t);
+    }
+  }
+
+  // --- 2) Masquer l’ancienne page view-stats si elle existe (on la garde mais non utilisée)
+  const oldStats = document.getElementById("view-stats");
+  if(oldStats) oldStats.style.display = "none";
+
+  // --- 3) Ajouter la nouvelle page "view-stats_simple" si absente
+  const views = document.querySelector(".views");
+  if(!views) return;
+
+  if(document.getElementById("view-stats_simple")) return;
+
+  const sec = document.createElement("section");
+  sec.id = "view-stats_simple";
+  sec.innerHTML = `
+    <div class="card">
+      <div class="row">
+        <div class="pill">Période :</div>
+        <select id="ssPeriod">
+          <option value="school">Année scolaire</option>
+          <option value="t1">Trimestre 1</option>
+          <option value="t2">Trimestre 2</option>
+          <option value="t3">Trimestre 3</option>
+          <option value="bonus">Bonus été</option>
+        </select>
+
+        <div class="spacer"></div>
+
+        <div class="pill">Total :</div>
+        <div class="pill"><b id="ssTotal" style="color:var(--text)">0</b> h</div>
+
+        <div class="pill">Diviseur :</div>
+        <div class="pill"><b id="ssDiv" style="color:var(--text)">—</b></div>
+
+        <div class="pill">Moyenne :</div>
+        <div class="pill"><b id="ssAvg" style="color:var(--text)">0</b> h / semaine</div>
+      </div>
+
+      <div class="hint">
+        Choisis la période et les activités à prendre en compte. Couleurs = celles de tes activités.
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="row" style="align-items:flex-start">
+        <div style="min-width:280px;max-width:420px;flex:0 0 360px">
+          <div class="pill" style="display:inline-block;margin-bottom:10px">Activités à prendre en compte</div>
+
+          <div class="row" style="margin-bottom:10px">
+            <button class="btn secondary" id="ssAll">Tout</button>
+            <button class="btn secondary" id="ssNone">Aucun</button>
+          </div>
+
+          <div id="ssChecks" style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02);max-height:420px;overflow:auto"></div>
+        </div>
+
+        <div style="flex:1;min-width:360px">
+          <div class="pill" style="display:inline-block;margin-bottom:10px">Graphiques</div>
+
+          <div style="display:grid;grid-template-columns:1fr;gap:12px">
+            <div style="border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.02);padding:10px;overflow:auto">
+              <div style="font-weight:900;margin-bottom:6px">Barres (heures par activité)</div>
+              <div id="ssBars"></div>
+            </div>
+
+            <div style="border:1px solid var(--border);border-radius:14px;background:rgba(255,255,255,.02);padding:10px;overflow:auto">
+              <div style="font-weight:900;margin-bottom:6px">Camembert (répartition)</div>
+              <div id="ssPie"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  views.appendChild(sec);
+
+  // --- 4) CSS léger pour la légende/checks
+  const style = document.createElement("style");
+  style.textContent = `
+    #view-stats_simple .ss-row{display:flex;align-items:center;gap:10px;margin:6px 0;color:var(--text);font-size:13px}
+    #view-stats_simple .ss-swatch{width:12px;height:12px;border-radius:4px;flex:0 0 12px}
+    #view-stats_simple .ss-name{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #view-stats_simple .ss-val{color:var(--dim);font-family:var(--mono);font-size:12px}
+  `;
+  document.head.appendChild(style);
+
+  // --- 5) Build checklist
+  const allActs = ACTIVITIES_REF.filter(a=>a && a!=="Occupation");
+  const checksEl = sec.querySelector("#ssChecks");
+
+  // état : activités sélectionnées
+  const selected = new Set(allActs);
+
+  function swatchColor(act){
+    return (COLORS_REF && COLORS_REF[act]) ? COLORS_REF[act] : "#777";
+  }
+
+  function renderChecks(){
+    checksEl.innerHTML = "";
+    allActs.forEach(act=>{
+      const id = "ss_" + act.replace(/[^\w]+/g,"_");
+      const row = document.createElement("label");
+      row.className = "ss-row";
+      row.innerHTML = `
+        <input type="checkbox" id="${id}" ${selected.has(act) ? "checked":""}>
+        <span class="ss-swatch" style="background:${swatchColor(act)}"></span>
+        <span class="ss-name">${act}</span>
+      `;
+      row.querySelector("input").addEventListener("change", (e)=>{
+        if(e.target.checked) selected.add(act);
+        else selected.delete(act);
+        renderAll();
+      });
+      checksEl.appendChild(row);
+    });
+  }
+
+  sec.querySelector("#ssAll").addEventListener("click", ()=>{
+    selected.clear(); allActs.forEach(a=>selected.add(a));
+    renderChecks(); renderAll();
+  });
+  sec.querySelector("#ssNone").addEventListener("click", ()=>{
+    selected.clear();
+    renderChecks(); renderAll();
+  });
+
+  // --- 6) Calcul heures par activité sur une période
+  function weeks(period){
+    const w = weeksForPeriod_REF(period);
+    return Array.isArray(w) ? w : [];
+  }
+
+  function compute(period){
+    const wks = weeks(period);
+    const totals = {};
+    allActs.forEach(a=>totals[a]=0);
+
+    for(const w of wks){
+      for(const slot of SLOTS_REF){
+        for(const day of DAYS_REF){
+          const a = getCell_REF(w, slot, day);
+          if(!a || a==="Occupation") continue;
+          if(totals[a] !== undefined) totals[a] += 1;
+        }
+      }
+    }
+
+    // filtre par sélection
+    const filtered = {};
+    for(const a of allActs){
+      if(selected.has(a)) filtered[a] = totals[a];
+    }
+
+    const totalSelected = Object.values(filtered).reduce((s,v)=>s+v,0);
+    return { wksCount: wks.length, totalsAll: totals, totalsSel: filtered, totalSelected };
+  }
+
+  // --- 7) Bar chart SVG
+  function renderBars(totalsSel){
+    const entries = Object.entries(totalsSel).filter(([,v])=>v>0);
+    if(entries.length===0){
+      sec.querySelector("#ssBars").innerHTML = `<div class="hint">Aucune heure pour les activités cochées.</div>`;
+      return;
+    }
+    entries.sort((a,b)=>b[1]-a[1]);
+    const maxV = Math.max(1, ...entries.map(e=>e[1]));
+
+    // SVG bar chart vertical (scroll si beaucoup)
+    const barH = 26;
+    const W = 760;
+    const H = 40 + entries.length*barH;
+    const padL = 160, padR = 20, padT = 20;
+
+    let svg = `<text x="10" y="16" font-size="12" fill="#8b8b8b">Heures (cases)</text>`;
+
+    entries.forEach(([act,val], i)=>{
+      const y = padT + i*barH + 10;
+      const w = ((W-padL-padR) * (val/maxV));
+      svg += `
+        <text x="10" y="${y+12}" font-size="12" fill="#eaeaea">${act}</text>
+        <rect x="${padL}" y="${y}" width="${w}" height="16" rx="4" fill="${swatchColor(act)}"></rect>
+        <text x="${padL+w+8}" y="${y+12}" font-size="12" fill="#8b8b8b">${val}</text>
+      `;
+    });
+
+    sec.querySelector("#ssBars").innerHTML = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">${svg}</svg>`;
+  }
+
+  // --- 8) Pie chart SVG
+  function renderPie(totalsSel, total){
+    const entries = Object.entries(totalsSel).filter(([,v])=>v>0);
+    if(entries.length===0){
+      sec.querySelector("#ssPie").innerHTML = `<div class="hint">Aucune heure pour les activités cochées.</div>`;
+      return;
+    }
+
+    const W=420, H=320, cx=210, cy=140, r=110;
+
+    function polar(a){ return [cx + r*Math.cos(a), cy + r*Math.sin(a)]; }
+    function arcPath(a0,a1){
+      const [x0,y0]=polar(a0), [x1,y1]=polar(a1);
+      const large = (a1-a0)>Math.PI ? 1 : 0;
+      return `M ${cx} ${cy} L ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1} Z`;
+    }
+
+    let a = -Math.PI/2;
+    let paths = "";
+    let legend = `<div class="hint">Total sélection : <b style="color:var(--text)">${total}</b> h</div>`;
+
+    entries.sort((a,b)=>b[1]-a[1]).forEach(([act,val])=>{
+      const frac = val/total;
+      const a1 = a + frac*2*Math.PI;
+      paths += `<path d="${arcPath(a,a1)}" fill="${swatchColor(act)}"></path>`;
+      legend += `
+        <div class="ss-row">
+          <span class="ss-swatch" style="background:${swatchColor(act)}"></span>
+          <span class="ss-name">${act}</span>
+          <span class="ss-val">${val} (${Math.round(frac*100)}%)</span>
+        </div>`;
+      a = a1;
+    });
+
+    sec.querySelector("#ssPie").innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">
+        ${paths}
+        <text x="${cx}" y="${H-16}" font-size="12" fill="#8b8b8b" text-anchor="middle">Répartition</text>
+      </svg>
+      ${legend}
+    `;
+  }
+
+  // --- 9) Diviseur = celui de ton curseur (workedRange/workedInput) si présents, sinon nombre de semaines de la période
+  function getDivisor(fallbackWeeksCount){
+    const wi = document.getElementById("workedInput");
+    const wr = document.getElementById("workedRange");
+    let v = null;
+    if(wi && wi.value) v = parseInt(wi.value,10);
+    else if(wr && wr.value) v = parseInt(wr.value,10);
+    if(Number.isFinite(v) && v>0) return v;
+    return Math.max(1, fallbackWeeksCount);
+  }
+
+  // --- 10) Render all
+  function renderAll(){
+    const period = sec.querySelector("#ssPeriod").value;
+    const {wksCount, totalsSel, totalSelected} = compute(period);
+    const div = getDivisor(wksCount);
+    const avg = totalSelected / Math.max(1, div);
+
+    sec.querySelector("#ssTotal").textContent = String(totalSelected);
+    sec.querySelector("#ssDiv").textContent = String(div);
+    sec.querySelector("#ssAvg").textContent = avg.toFixed(1);
+
+    renderBars(totalsSel);
+    renderPie(totalsSel, Math.max(1,totalSelected));
+  }
+
+  // --- Events
+  sec.querySelector("#ssPeriod").addEventListener("change", renderAll);
+
+  // Initial paint
+  renderChecks();
+  renderAll();
+
+})();
+/* ===== END "STATISTIQUES SIMPLES" ===== */
   
 </script>
 </body>
