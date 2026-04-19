@@ -148,6 +148,12 @@
             Importer
             <input id="importFile" type="file" accept="application/json" style="display:none">
           </label>
+          
+<label class="btn secondary" style="cursor:pointer">
+  Importer CSV (Numbers / Excel)
+  <input id="importCSV" type="file" accept=".csv,text/csv" style="display:none">
+</label>
+
         </div>
 
         <div class="hint">
@@ -907,7 +913,86 @@ document.getElementById("resetVac").addEventListener("click", ()=>{
   renderVac();
   renderStats();
 });
+// ===== Import CSV (Numbers / Excel export CSV) =====
+function detectDelimiter(line){
+  const semis = (line.match(/;/g)||[]).length;
+  const commas = (line.match(/,/g)||[]).length;
+  return semis >= commas ? ";" : ",";
+}
 
+function parseCSV(text){
+  const lines = text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
+  if(lines.length === 0) return {header:[], rows:[]};
+
+  const delim = detectDelimiter(lines[0]);
+  const rows = [];
+
+  for(const rawLine of lines){
+    const out = [];
+    let cur = "";
+    let inQ = false;
+
+    for(let i=0;i<rawLine.length;i++){
+      const ch = rawLine[i];
+      if(ch === '"'){
+        if(inQ && rawLine[i+1] === '"'){ cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if(ch === delim && !inQ){
+        out.push(cur); cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    rows.push(out.map(x=>x.trim()));
+  }
+
+  return {header: rows[0], rows: rows.slice(1)};
+}
+
+function importFromCSV(text){
+  const {header, rows} = parseCSV(text);
+
+  const col = name => header.findIndex(h=>h.toLowerCase()===name.toLowerCase());
+
+  const iWeek = col("N° Semaine");
+  const iSlot = col("Créneau");
+  const days = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+  const dayIdx = days.map(d=>col(d));
+
+  if([iWeek,iSlot,...dayIdx].some(i=>i<0)){
+    toast("CSV non reconnu (colonnes manquantes)");
+    return;
+  }
+
+  let count = 0;
+  for(const r of rows){
+    const w = parseInt(r[iWeek],10);
+    const slot = (r[iSlot]||"").trim();
+    if(!w || !slot) continue;
+
+    days.forEach((d,di)=>{
+      let v = (r[dayIdx[di]]||"").trim();
+      if(v==="") v="Occupation";
+      setCell(w, slot, d, v);
+      count++;
+    });
+  }
+
+  toast(`Import CSV OK (${count} cellules)`);
+  renderWeek();
+  renderVac();
+  renderStats();
+}
+
+document.getElementById("importCSV").addEventListener("change", async (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const text = await file.text();
+  importFromCSV(text);
+  e.target.value = "";
+});
+  
 /* =======================
    INIT
    ======================= */
