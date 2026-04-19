@@ -754,12 +754,22 @@ function renderStats(){
       const inp = document.createElement("input");
       inp.type="number"; inp.min="0"; inp.step="1"; inp.placeholder="—";
       inp.value = exp>0 ? String(exp) : "";
-      inp.addEventListener("change", ()=>{
-        const v = Number(inp.value);
-        if(!inp.value || isNaN(v) || v<=0) delete objectifs.perActivity[period][act];
-        else objectifs.perActivity[period][act] = Math.round(v);
-        saveObjectifs(); renderStats();
-      });
+     const applyExpected = () => {
+  const v = Number(inp.value);
+  if (!inp.value || isNaN(v) || v <= 0) {
+    delete objectifs.perActivity[period][act];
+  } else {
+    objectifs.perActivity[period][act] = Math.round(v);
+  }
+  saveObjectifs();
+  renderStats();
+};
+
+// iPad/Safari : "input" met à jour au fil de la saisie
+inp.addEventListener("input", applyExpected);
+// "change" + "blur" sécurisent quand on quitte le champ
+inp.addEventListener("change", applyExpected);
+inp.addEventListener("blur", applyExpected);
       expBox.appendChild(lab); expBox.appendChild(inp);
 
       row.appendChild(label); row.appendChild(track); row.appendChild(value); row.appendChild(expBox);
