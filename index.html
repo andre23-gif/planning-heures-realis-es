@@ -13,6 +13,7 @@
       --danger:#ff6b6b; --warn:#ffcc66; --ok:#6ee7b7;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
     }
+
     *{box-sizing:border-box}
     body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text)}
     header{
@@ -28,11 +29,13 @@
       padding:8px 10px;border-radius:10px;font-weight:800;font-size:13px;cursor:pointer
     }
     .tab.active{background:var(--accent);border-color:var(--accent);color:#0f0f0f}
+
     main{padding:14px;max-width:1200px;margin:0 auto}
     .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px}
     .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
     .spacer{flex:1}
     .pill{background:var(--surface2);border:1px solid var(--border);padding:6px 10px;border-radius:999px;color:var(--dim);font-size:12px}
+    .hint{color:var(--dim);font-size:12px;margin-top:10px}
     .btn{
       border:none;background:var(--accent);color:#0f0f0f;font-weight:900;
       padding:10px 12px;border-radius:10px;cursor:pointer
@@ -44,7 +47,7 @@
       padding:10px 12px;border-radius:10px
     }
     input[type="number"]{width:92px}
-    .hint{color:var(--dim);font-size:12px;margin-top:10px}
+
     .views > section{display:none}
     .views > section.active{display:block}
 
@@ -99,6 +102,11 @@
     .b-alert{background:rgba(255,107,107,.14);color:var(--danger);border:1px solid rgba(255,107,107,.35)}
     .mini svg{width:100%;height:auto;display:block}
 
+    /* Barre globale (classes couleur) */
+    .global-warn { background: var(--warn) !important; }
+    .global-ok { background: var(--ok) !important; }
+    .global-alert { background: var(--danger) !important; }
+
     /* Modal */
     .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:50;align-items:center;justify-content:center}
     .overlay.open{display:flex}
@@ -112,6 +120,7 @@
     }
     .choice.sel{border-color:#fff}
     .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+
     .toast{position:fixed;right:14px;bottom:14px;background:var(--accent);color:#0f0f0f;font-weight:900;
       padding:10px 14px;border-radius:12px;opacity:0;transform:translateY(12px);transition:.25s;z-index:60}
     .toast.show{opacity:1;transform:translateY(0)}
@@ -155,7 +164,7 @@
         </div>
 
         <div class="hint">
-          Import CSV : tes fichiers “Semaine 35-Tableau 1.csv” sont au format hebdo (1 fichier = 1 semaine). [1](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)[2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=2974b212-92b6-441f-8e1d-3f1f297dce51&cid=53edf03465ddcc82)
+          Tes CSV sont des tableaux hebdo (1 fichier = 1 semaine), ex: “Semaine 35…” [2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)
         </div>
 
         <div style="height:12px"></div>
@@ -214,8 +223,17 @@
           <input id="alertPct" type="number" min="100" max="300" step="1" style="width:90px">
         </div>
 
+        <!-- Barre visuelle objectif global -->
+        <div class="row" style="margin-top:10px">
+          <div class="pill">Progression globale :</div>
+          <div class="track" style="flex:1; min-width:220px">
+            <div id="globalFill" class="fill" style="width:0%; background: var(--dim)"></div>
+          </div>
+          <div class="pill" id="globalBarText">—</div>
+        </div>
+
         <div class="hint">
-          1 case remplie = 1 heure. Alertes : % réalisé/attendu (si attendu défini). [1](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)
+          1 case remplie = 1 heure. La barre globale suit l’objectif global (manuel) ou la somme des attendus par activité si le global est vide.
         </div>
       </div>
 
@@ -267,9 +285,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-/* =======================
-   CONFIG
-   ======================= */
+/* ========= CONFIG ========= */
 const DAYS = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
 const SLOTS = ["Préparation","M1","M2","M3","M4","Midi","S1","S2","S3","S4","Soir 1","Soir 2","Soir 3","Soir 4","Nuit 1","Nuit 2","Nuit 3","Nuit 4","Nuit 5"];
 const ACTIVITIES = ["Cours","CDC/suivi","Préparation","Instances","Parcours Avenir","Baroque","Gestion","Numérique","Coordination","Réunion","Amicale","Autres","Pépinières","Occupation"];
@@ -281,18 +297,15 @@ const COLORS = {
   "Occupation":"#222"
 };
 
-/* =======================
-   STORAGE
-   ======================= */
-const LS_OVR = "ps_overrides_clean_v2";
+/* ========= STORAGE ========= */
+const LS_OVR = "ps_overrides_clean_v3";
 const LS_VAC = "ps_vacances_v1";
-const LS_OBJ = "ps_objectifs_clean_v2";
+const LS_OBJ = "ps_objectifs_clean_v3";
 
 let overrides = {};
 let vacances = new Set();
-
 let objectifs = {
-  global: { school: 0, annual: 0, t1: 0, t2: 0, t3: 0, t4: 0 },
+  global: { school: 0, annual: 0, t1: 0, t2: 0, t3: 0, t4: 0 },   // 0 => mode auto
   perActivity: { school:{}, annual:{}, t1:{}, t2:{}, t3:{}, t4:{} },
   thresholds: { warnPct: 90, alertPct: 110 }
 };
@@ -306,9 +319,7 @@ try {
 
 function saveObjectifs(){ localStorage.setItem(LS_OBJ, JSON.stringify(objectifs)); }
 
-/* =======================
-   HELPERS
-   ======================= */
+/* ========= HELPERS ========= */
 function toast(msg){
   const t = document.getElementById("toast");
   t.textContent = msg;
@@ -325,19 +336,15 @@ function setCell(week, slot, day, val){
   overrides[k(week,slot,day)] = val;
   localStorage.setItem(LS_OVR, JSON.stringify(overrides));
 }
-
-// corrige les textes mal encodés vus dans tes CSV (ex: "PrĂ©paration") [2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=2974b212-92b6-441f-8e1d-3f1f297dce51&cid=53edf03465ddcc82)
 function fixText(s){
+  // corrige l’encodage observé dans ton CSV S28 (PrĂ©paration) [2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)
   return (s || "")
     .replaceAll("PrĂ©paration", "Préparation")
     .replaceAll("PrÃ©paration", "Préparation")
     .replaceAll("RĂ©union", "Réunion")
-    .replaceAll("RÃ©union", "Réunion")
-    .replaceAll("CrĂ©neau", "Créneau")
-    .replaceAll("CrÃ©neau", "Créneau");
+    .replaceAll("RÃ©union", "Réunion");
 }
 function normSpace(s){ return (s||"").trim().replace(/\s+/g," "); }
-
 function uniqueOrdered(arr){
   const seen = new Set();
   const out = [];
@@ -349,16 +356,14 @@ function uniqueOrdered(arr){
   return out;
 }
 
-/* =======================
-   WEEKS (NO DUPLICATES)
-   ======================= */
+/* ========= WEEKS (DEDUP) ========= */
 function schoolOrder(){
   const w = [];
   for(let i=35;i<=52;i++) w.push(i);
   for(let i=1;i<=39;i++) w.push(i);
-  return uniqueOrdered(w);
+  return uniqueOrdered(w); // ✅ empêche les doublons
 }
-const SCHOOL_ORDER = schoolOrder();   // ✅ plus de doublons (corrige ton problème)
+const SCHOOL_ORDER = schoolOrder();
 let currentWeek = SCHOOL_ORDER[0];
 
 const PERIODS = {
@@ -370,9 +375,7 @@ const PERIODS = {
   t4: Array.from({length:13},(_,i)=>40+i)
 };
 
-/* =======================
-   TABS
-   ======================= */
+/* ========= TABS ========= */
 document.querySelectorAll(".tab").forEach(btn=>{
   btn.addEventListener("click", ()=>{
     document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
@@ -384,9 +387,7 @@ document.querySelectorAll(".tab").forEach(btn=>{
   });
 });
 
-/* =======================
-   WEEK SELECTOR
-   ======================= */
+/* ========= WEEK SELECT ========= */
 const weekSelect = document.getElementById("weekSelect");
 function buildWeekSelect(){
   weekSelect.innerHTML = "";
@@ -411,9 +412,7 @@ document.getElementById("nextWeek").addEventListener("click", ()=>{
   if(i<SCHOOL_ORDER.length-1){ currentWeek = SCHOOL_ORDER[i+1]; renderWeek(); }
 });
 
-/* =======================
-   MODAL
-   ======================= */
+/* ========= MODAL ========= */
 const overlay = document.getElementById("overlay");
 const choices = document.getElementById("choices");
 let modalCtx = null;
@@ -451,9 +450,7 @@ document.getElementById("mSave").addEventListener("click", ()=>{
   toast("Enregistré");
 });
 
-/* =======================
-   RENDER WEEK
-   ======================= */
+/* ========= RENDER WEEK ========= */
 function renderWeek(){
   document.getElementById("weekLabel").textContent = "Semaine " + currentWeek;
   weekSelect.value = currentWeek;
@@ -507,9 +504,7 @@ function renderWeek(){
   table.appendChild(tbody);
 }
 
-/* =======================
-   VACANCES
-   ======================= */
+/* ========= VACANCES ========= */
 function renderVac(){
   const wrap = document.getElementById("vacWeeks");
   wrap.innerHTML = "";
@@ -531,9 +526,7 @@ document.getElementById("resetVac").addEventListener("click", ()=>{
   renderVac(); renderStats();
 });
 
-/* =======================
-   STATS CONTROLS (sync)
-   ======================= */
+/* ========= STATS CONTROLS (sync) ========= */
 const workedRange = document.getElementById("workedRange");
 const workedInput = document.getElementById("workedInput");
 const workedLabel = document.getElementById("workedLabel");
@@ -582,9 +575,7 @@ alertPctInput.addEventListener("change", ()=>{
 });
 periodSelect.addEventListener("change", renderStats);
 
-/* =======================
-   STATS CORE
-   ======================= */
+/* ========= STATS CORE ========= */
 function activeWeeks(period){
   const base = (PERIODS[period] || PERIODS.school);
   const max = clampWeeks(workedInput.value || workedRange.value);
@@ -610,7 +601,6 @@ function countActivities(weeks){
   }
   return counts;
 }
-
 function renderSpark(points){
   const container = document.getElementById("spark");
   if(points.length===0){ container.innerHTML=""; return; }
@@ -635,21 +625,12 @@ function renderSpark(points){
             <text x="${pad.l-6}" y="${y+4}" font-size="10" fill="#8b8b8b" text-anchor="end">${v}</text>`;
   }).join("");
 
-  const labelStep = Math.max(1, Math.floor(points.length/8));
-  const xLabels = points.map((p,i)=>({p,i}))
-    .filter(o=>o.i%labelStep===0 || o.i===points.length-1)
-    .map(o=>{
-      const x = pad.l + o.i*stepX;
-      return `<text x="${x}" y="${pad.t+ih+16}" font-size="10" fill="#8b8b8b" text-anchor="middle">S${o.p.w}</text>`;
-    }).join("");
-
   container.innerHTML = `
     <svg viewBox="0 0 ${W} ${H}">
       ${yTicks}
       <path d="${area}" fill="rgba(200,245,58,.08)"></path>
       <polyline points="${line}" fill="none" stroke="#c8f53a" stroke-width="2"></polyline>
       ${coords.map(c=>`<circle cx="${c[0]}" cy="${c[1]}" r="3" fill="#c8f53a"></circle>`).join("")}
-      ${xLabels}
     </svg>
   `;
 }
@@ -671,12 +652,21 @@ function renderStats(){
   const warnPct = objectifs.thresholds.warnPct ?? 90;
   const alertPct = objectifs.thresholds.alertPct ?? 110;
 
-  // global objectif
-  const gExp = Number(objectifs.global?.[period] || 0);
-  globalExpectedInput.value = gExp > 0 ? String(gExp) : "";
-  globalExpectedInput.onchange = ()=>{
-    const v = Number(globalExpectedInput.value) || 0;
-    objectifs.global[period] = v>0 ? Math.round(v) : 0;
+  // objectifs par activité pour la période
+  const perAct = objectifs.perActivity?.[period] || {};
+
+  // objectif global : manuel si saisi, sinon auto = somme des attendus par activité
+  const storedGlobal = Number(objectifs.global?.[period] || 0);
+  const sumPerAct = Object.values(perAct).map(Number).filter(v=>!isNaN(v)&&v>0).reduce((a,b)=>a+b,0);
+  const effectiveGlobal = storedGlobal > 0 ? storedGlobal : sumPerAct;
+
+  globalExpectedInput.value = storedGlobal > 0 ? String(storedGlobal) : "";
+  globalExpectedInput.placeholder = sumPerAct>0 ? `auto : ${sumPerAct}` : "—";
+
+  globalExpectedInput.oninput = ()=>{
+    const v = Number(globalExpectedInput.value);
+    if(!globalExpectedInput.value || isNaN(v) || v<=0) objectifs.global[period]=0; // auto
+    else objectifs.global[period]=Math.round(v);
     saveObjectifs(); renderStats();
   };
 
@@ -689,10 +679,34 @@ function renderStats(){
     if(pct >= warnPct) return `<span style="color:var(--warn);font-weight:900">${pct}% – reste ${Math.abs(diff)} h</span>`;
     return `<span style="color:var(--dim)">${pct}% – reste ${Math.abs(diff)} h</span>`;
   }
-  globalStatus.innerHTML = globalStatusHTML(totalReal, gExp);
+  globalStatus.innerHTML = globalStatusHTML(totalReal, effectiveGlobal);
 
-  // activités list
-  const perAct = objectifs.perActivity?.[period] || {};
+  // --- Barre visuelle globale ---
+  const globalFill = document.getElementById("globalFill");
+  const globalBarText = document.getElementById("globalBarText");
+
+  globalFill.classList.remove("global-warn","global-ok","global-alert");
+  globalFill.style.background = "var(--dim)";
+
+  if(!effectiveGlobal || effectiveGlobal<=0){
+    globalFill.style.width = "0%";
+    globalBarText.textContent = "Objectif global non défini";
+  } else {
+    const pct = Math.round((totalReal / effectiveGlobal) * 100);
+    const diff = totalReal - effectiveGlobal;
+    const width = Math.min(100, (totalReal / effectiveGlobal) * 100);
+    globalFill.style.width = width.toFixed(1) + "%";
+
+    if(pct >= alertPct) globalFill.classList.add("global-alert");
+    else if(pct >= 100) globalFill.classList.add("global-ok");
+    else if(pct >= warnPct) globalFill.classList.add("global-warn");
+
+    if(diff > 0) globalBarText.textContent = `${pct}%  (+${diff} h)`;
+    else if(diff < 0) globalBarText.textContent = `${pct}%  (reste ${Math.abs(diff)} h)`;
+    else globalBarText.textContent = `100%  (objectif atteint)`;
+  }
+
+  // Liste activités à afficher : celles réalisées OU celles avec attendu
   const setActs = new Set(Object.keys(counts).filter(a=>counts[a]>0));
   Object.keys(perAct).forEach(a=>setActs.add(a));
 
@@ -754,22 +768,18 @@ function renderStats(){
       const inp = document.createElement("input");
       inp.type="number"; inp.min="0"; inp.step="1"; inp.placeholder="—";
       inp.value = exp>0 ? String(exp) : "";
-     const applyExpected = () => {
-  const v = Number(inp.value);
-  if (!inp.value || isNaN(v) || v <= 0) {
-    delete objectifs.perActivity[period][act];
-  } else {
-    objectifs.perActivity[period][act] = Math.round(v);
-  }
-  saveObjectifs();
-  renderStats();
-};
 
-// iPad/Safari : "input" met à jour au fil de la saisie
-inp.addEventListener("input", applyExpected);
-// "change" + "blur" sécurisent quand on quitte le champ
-inp.addEventListener("change", applyExpected);
-inp.addEventListener("blur", applyExpected);
+      const applyExpected = () => {
+        const v = Number(inp.value);
+        if(!inp.value || isNaN(v) || v<=0) delete objectifs.perActivity[period][act];
+        else objectifs.perActivity[period][act] = Math.round(v);
+        saveObjectifs();
+        renderStats();
+      };
+      inp.addEventListener("input", applyExpected);
+      inp.addEventListener("change", applyExpected);
+      inp.addEventListener("blur", applyExpected);
+
       expBox.appendChild(lab); expBox.appendChild(inp);
 
       row.appendChild(label); row.appendChild(track); row.appendChild(value); row.appendChild(expBox);
@@ -779,26 +789,15 @@ inp.addEventListener("blur", applyExpected);
 
   const pts = weeks.map(w=>{
     let n=0;
-    for(const slot of SLOTS){
-      for(const day of DAYS){
-        if(getCell(w,slot,day)!=="Occupation") n++;
-      }
-    }
+    for(const slot of SLOTS) for(const day of DAYS) if(getCell(w,slot,day)!=="Occupation") n++;
     return {w,n};
   });
   renderSpark(pts);
 }
 
-/* =======================
-   JSON EXPORT / IMPORT
-   ======================= */
+/* ========= JSON EXPORT / IMPORT ========= */
 document.getElementById("btnExportJson").addEventListener("click", ()=>{
-  const payload = {
-    overrides,
-    vacances: Array.from(vacances),
-    objectifs,
-    ui: { workedWeeks: clampWeeks(workedInput.value||workedRange.value), period: periodSelect.value }
-  };
+  const payload = { overrides, vacances: Array.from(vacances), objectifs, ui: { workedWeeks: clampWeeks(workedInput.value||workedRange.value), period: periodSelect.value } };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -816,15 +815,9 @@ document.getElementById("importFile").addEventListener("change", async (e)=>{
     if(payload.overrides) overrides = payload.overrides;
     if(payload.vacances) vacances = new Set(payload.vacances);
     if(payload.objectifs) objectifs = payload.objectifs;
-    if(payload.ui?.workedWeeks) setWeeksWorked(payload.ui.workedWeeks);
-    if(payload.ui?.period) periodSelect.value = payload.ui.period;
-
     localStorage.setItem(LS_OVR, JSON.stringify(overrides));
     localStorage.setItem(LS_VAC, JSON.stringify(Array.from(vacances)));
     saveObjectifs();
-    warnPctInput.value = objectifs.thresholds.warnPct ?? 90;
-    alertPctInput.value = objectifs.thresholds.alertPct ?? 110;
-
     toast("Import JSON OK");
     renderWeek(); renderVac(); renderStats();
   }catch(err){
@@ -834,11 +827,7 @@ document.getElementById("importFile").addEventListener("change", async (e)=>{
   }
 });
 
-/* =======================
-   CSV IMPORT (your weekly files)
-   Weekly format example: ;Lundi;... then slot rows (S35 file) [1](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)
-   Also fixes mojibake seen in S28 (PrĂ©paration) [2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=2974b212-92b6-441f-8e1d-3f1f297dce51&cid=53edf03465ddcc82)
-   ======================= */
+/* ========= CSV IMPORT (weekly files) ========= */
 function detectDelimiter(line){
   const semis = (line.match(/;/g)||[]).length;
   const commas = (line.match(/,/g)||[]).length;
@@ -881,7 +870,6 @@ function importWeeklyCSV(text, filename){
   const week = weekFromFilename(filename);
   if(!week){ toast("CSV : numéro de semaine introuvable"); return; }
 
-  // header like ["", "Lundi", "Mardi", ...]
   const h = header.map(x=>normSpace(fixText(x)).toLowerCase());
   const looksWeekly = h.includes("lundi") && h.includes("mardi") && h.includes("mercredi") && h.includes("jeudi") && h.includes("vendredi");
   if(!looksWeekly){
@@ -907,7 +895,6 @@ function importWeeklyCSV(text, filename){
 document.getElementById("importCSV").addEventListener("change", async (e)=>{
   const files = e.target.files ? Array.from(e.target.files) : [];
   if(!files.length) return;
-
   for(const f of files){
     const text = await f.text();
     importWeeklyCSV(text, f.name);
@@ -917,9 +904,7 @@ document.getElementById("importCSV").addEventListener("change", async (e)=>{
   e.target.value="";
 });
 
-/* =======================
-   STATS CSV EXPORT
-   ======================= */
+/* ========= STATS CSV EXPORT ========= */
 document.getElementById("btnExportCsv").addEventListener("click", ()=>{
   const period = periodSelect.value;
   const weeks = activeWeeks(period);
@@ -958,9 +943,7 @@ document.getElementById("btnExportCsv").addEventListener("click", ()=>{
   URL.revokeObjectURL(a.href);
 });
 
-/* =======================
-   INIT
-   ======================= */
+/* ========= INIT ========= */
 buildWeekSelect();
 renderWeek();
 renderVac();
