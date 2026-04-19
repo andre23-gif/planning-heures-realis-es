@@ -163,9 +163,11 @@
           </label>
         </div>
 
-        <div class="hint">
-          Tes CSV sont des tableaux hebdo (1 fichier = 1 semaine), ex: “Semaine 35…” [2](https://onedrive.live.com/personal/53edf03465ddcc82/_layouts/15/doc.aspx?resid=c36d1c72-99d0-453b-9484-c94ec46225ae&cid=53edf03465ddcc82)
-        </div>
+        
+<div class="hint">
+  Import CSV : fichiers hebdo “Semaine XX …” au format ;Lundi;Mardi;…;Dimanche.
+</div>
+
 
         <div style="height:12px"></div>
         <div class="gridwrap">
@@ -179,12 +181,12 @@
       <div class="card" style="margin-bottom:12px">
         <div class="row">
           <div class="pill">Période :</div>
-     <select id="periodSelect">
-  <option value="school">Année scolaire (S36→S52 puis S1→S27)</option>
+    <select id="periodSelect">
+  <option value="school">Année scolaire (T1+T2+T3 + bonus été)</option>
   <option value="t1">Trimestre 1 (S36→S48)</option>
   <option value="t2">Trimestre 2 (S49→S11)</option>
   <option value="t3">Trimestre 3 (S12→S27)</option>
-  <option value="annual">Année civile (S1→S52)</option>
+  <option value="bonus">Bonus été (S28→S35)</option>
 </select>
 
           <div class="spacer"></div>
@@ -611,16 +613,9 @@ periodSelect.addEventListener("change", renderStats);
 
 /* ========= STATS CORE ========= */
 function activeWeeks(period){
+  // ✅ Ne limite plus par le curseur : retourne TOUTES les semaines de la période (hors vacances)
   const base = (PERIODS[period] || PERIODS.school);
-  const max = clampWeeks(workedInput.value || workedRange.value);
-
-  const arr = [];
-  for(const w of base){
-    if(vacances.has(w)) continue;
-    arr.push(w);
-    if(arr.length >= max) break;
-  }
-  return arr;
+  return base.filter(w => !vacances.has(w));
 }
 function countActivities(weeks){
   const counts = {};
@@ -673,9 +668,18 @@ function renderStats(){
   const period = periodSelect.value;
   document.getElementById("vacCount").textContent = vacances.size;
 
-  const weeks = activeWeeks(period);
-  const counts = countActivities(weeks);
-  const totalReal = Object.values(counts).reduce((s,v)=>s+v,0);
+// ✅ Toutes les semaines de la période sont comptées (pas limité par le curseur)
+const weeks = activeWeeks(period);
+
+// ✅ Pour l’année scolaire, on ajoute le bonus été au numérateur (heures en plus)
+// mais on ne change PAS le diviseur.
+let weeksForNumerator = weeks.slice();
+if (period === "school") {
+  const bonusWeeks = (PERIODS.bonus || []).filter(w => !vacances.has(w));
+  weeksForNumerator = uniqueOrdered([...weeksForNumerator, ...bonusWeeks]);
+}
+
+const counts = countActivitiesForWeeks(weeksForNumerator);
 
   const chosenWeeks = clampWeeks(workedInput.value || workedRange.value);
   const avg = totalReal / Math.max(1, chosenWeeks);
