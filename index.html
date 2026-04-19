@@ -1391,6 +1391,418 @@ renderStats();
 
 })();
 /* ===== END STATISTIQUES AVANCÉES ===== */
+
+  /* ===== BEGIN ONGLET "PRÉ-REMPLISSAGE" (semaine modèle -> appliquer à semaines cochées) ===== */
+(function(){
+  // Anti-duplication
+  if (document.querySelector('.tabs [data-view="prefill"]') || document.getElementById("view-prefill")) return;
+
+  // Références robustes (fonctionne même si const globaux non attachés à window)
+  const SLOTS_REF = (typeof SLOTS !== "undefined") ? SLOTS : null;
+  const DAYS_REF  = (typeof DAYS  !== "undefined") ? DAYS  : null;
+  const ACTS_REF  = (typeof ACTIVITIES !== "undefined") ? ACTIVITIES : null;
+  const getCell_REF = (typeof getCell === "function") ? getCell : null;
+  const setCell_REF = (typeof setCell === "function") ? setCell : null;
+  const COLORS_REF  = (typeof COLORS !== "undefined") ? COLORS : {};
+  const renderWeek_REF = (typeof renderWeek === "function") ? renderWeek : null;
+  const renderStats_REF = (typeof renderStats === "function") ? renderStats : null;
+  const weeksForPeriod_REF = (typeof weeksForPeriod === "function") ? weeksForPeriod : null;
+
+  if(!SLOTS_REF || !DAYS_REF || !ACTS_REF || !getCell_REF || !setCell_REF){
+    console.warn("Pré-remplissage: dépendances manquantes (SLOTS/DAYS/ACTIVITIES/getCell/setCell).");
+    return;
+  }
+
+  const LS_TEMPLATE = "ps_prefill_template_v1";
+
+  // ---------- helpers ----------
+  function toastSafe(msg){
+    try { toast(msg); } catch(e){ /* ignore */ }
+  }
+  function normSpace(s){ return (s||"").trim().replace(/\s+/g," "); }
+
+  function getWeeksList(){
+    // priorité 1: SCHOOL_ORDER si existant
+    if (typeof SCHOOL_ORDER !== "undefined" && Array.isArray(SCHOOL_ORDER) && SCHOOL_ORDER.length) return SCHOOL_ORDER.slice();
+    // priorité 2: weeksForPeriod("school")
+    if (weeksForPeriod_REF) {
+      try { const w = weeksForPeriod_REF("school"); if(Array.isArray(w) && w.length) return w.slice(); } catch(e){}
+    }
+    // priorité 3: semaineSelect options
+    const sel = document.getElementById("weekSelect");
+    if (sel && sel.options && sel.options.length) {
+      return Array.from(sel.options).map(o=>parseInt(o.value,10)).filter(n=>Number.isFinite(n));
+    }
+    // fallback
+    return [];
+  }
+
+  function emptyTemplate(){
+    const t = {};
+    for(const slot of SLOTS_REF){
+      t[slot] = {};
+      for(const day of DAYS_REF) t[slot][day] = "Occupation";
+    }
+    return t;
+  }
+
+  function loadTemplate(){
+    try{
+      const raw = JSON.parse(localStorage.getItem(LS_TEMPLATE) || "null");
+      if(raw && typeof raw === "object") return raw;
+    }catch(e){}
+    return emptyTemplate();
+  }
+
+  function saveTemplate(t){
+    localStorage.setItem(LS_TEMPLATE, JSON.stringify(t));
+  }
+
+  let TEMPLATE = loadTemplate();
+
+  // ---------- inject tab ----------
+  const tabs = document.querySelector(".tabs");
+  const tab = document.createElement("button");
+  tab.className = "tab";
+  tab.dataset.view = "prefill";
+  tab.textContent = "🧩 Pré-remplissage";
+  tabs.appendChild(tab);
+
+  // ---------- inject section ----------
+  const views = document.querySelector(".views");
+  const sec = document.createElement("section");
+  sec.id = "view-prefill";
+  sec.innerHTML = `
+    <div class="card">
+      <div class="row">
+        <div class="pill">Modèle</div>
+        <button class="btn secondary" id="pfCopyFromWeek">Copier depuis…</button>
+        <select id="pfSourceWeek"></select>
+
+        <div class="spacer"></div>
+
+        <button class="btn secondary" id="pfClear">Vider le modèle</button>
+        <button class="btn" id="pfSave">Enregistrer le modèle</button>
+      </div>
+
+      <div class="hint">
+        Crée une semaine modèle ici, puis applique-la à une ou plusieurs semaines (cases à cocher). Ensuite tu ajustes dans l’onglet Semaine (ex: semaine 37).
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="row" style="align-items:flex-start">
+        <div style="min-width:280px;max-width:380px;flex:0 0 320px">
+          <div class="pill" style="display:inline-block;margin-bottom:8px">Semaines cibles</div>
+
+          <div class="row" style="margin-bottom:10px">
+            <button class="btn secondary" id="pfAll">Tout</button>
+            <button class="btn secondary" id="pfNone">Aucun</button>
+            <button class="btn secondary" id="pfT1">T1</button>
+            <button class="btn secondary" id="pfT2">T2</button>
+            <button class="btn secondary" id="pfT3">T3</button>
+            <button class="btn secondary" id="pfBonus">Bonus</button>
+          </div>
+
+          <div class="hint" id="pfCount">0 semaine sélectionnée</div>
+
+          <div style="height:10px"></div>
+
+          <div style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02);max-height:360px;overflow:auto" id="pfWeekList"></div>
+
+          <div style="height:12px"></div>
+
+          <div style="border:1px solid var(--border);border-radius:14px;padding:10px;background:rgba(255,255,255,.02)">
+            <div class="hint" style="margin:0 0 10px 0;color:var(--text);font-weight:800">Appliquer le modèle</div>
+
+            <label class="hint" style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">
+              <input type="checkbox" id="pfOnlyEmpty">
+              Appliquer seulement sur les cases vides (Occupation)
+            </label>
+
+            <label class="hint" style="display:flex;gap:8px;align-items:center;margin:0 0 10px 0">
+              <input type="checkbox" id="pfIncludeOccupation">
+              Inclure “Occupation” (écrase tout, y compris les vides)
+            </label>
+
+            <button class="btn" id="pfApply">Appliquer aux semaines cochées</button>
+            <div class="hint" style="margin-top:8px">Astuce : en général, laisse “Inclure Occupation” décoché (on applique seulement ce qui est renseigné dans le modèle).</div>
+          </div>
+        </div>
+
+        <div style="flex:1;min-width:360px">
+          <div class="pill" style="display:inline-block;margin-bottom:8px">Semaine modèle (clic sur une case pour choisir)</div>
+          <div class="gridwrap">
+            <table id="pfGrid"></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de choix activité (indépendant du modal principal) -->
+    <div class="overlay" id="pfOverlay">
+      <div class="modal" role="dialog" aria-modal="true">
+        <h3 id="pfMTitle">Choisir une activité</h3>
+        <div class="sub" id="pfMSub"></div>
+        <div class="choices" id="pfChoices"></div>
+        <div class="actions">
+          <button class="btn secondary" id="pfCancel">Annuler</button>
+          <button class="btn" id="pfOk">OK</button>
+        </div>
+      </div>
+    </div>
+  `;
+  views.appendChild(sec);
+
+  // ---------- tab switching ----------
+  tab.addEventListener("click", ()=>{
+    document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+    tab.classList.add("active");
+    document.querySelectorAll(".views > section").forEach(s=>s.classList.remove("active"));
+    sec.classList.add("active");
+    refreshWeekList();
+    renderTemplateGrid();
+  });
+
+  // ---------- source week dropdown ----------
+  const srcSel = sec.querySelector("#pfSourceWeek");
+  function fillSourceWeeks(){
+    srcSel.innerHTML = "";
+    const weeks = getWeeksList();
+    weeks.forEach(w=>{
+      const o = document.createElement("option");
+      o.value = String(w);
+      o.textContent = "Semaine " + w;
+      srcSel.appendChild(o);
+    });
+  }
+  fillSourceWeeks();
+
+  // ---------- week list checkboxes ----------
+  const weekListEl = sec.querySelector("#pfWeekList");
+  const countEl = sec.querySelector("#pfCount");
+  const selectedWeeks = new Set();
+
+  function updateCount(){
+    const n = selectedWeeks.size;
+    countEl.textContent = n + (n<=1 ? " semaine sélectionnée" : " semaines sélectionnées");
+  }
+
+  function refreshWeekList(){
+    const weeks = getWeeksList();
+    weekListEl.innerHTML = "";
+
+    weeks.forEach(w=>{
+      const id = "pfw_" + w;
+      const row = document.createElement("label");
+      row.className = "hint";
+      row.style.display = "flex";
+      row.style.gap = "10px";
+      row.style.alignItems = "center";
+      row.style.margin = "6px 0";
+      row.innerHTML = `
+        <input type="checkbox" id="${id}">
+        <span style="color:var(--text);font-weight:800">S${w}</span>
+      `;
+      const cb = row.querySelector("input");
+      cb.checked = selectedWeeks.has(w);
+      cb.addEventListener("change", ()=>{
+        if(cb.checked) selectedWeeks.add(w);
+        else selectedWeeks.delete(w);
+        updateCount();
+      });
+      weekListEl.appendChild(row);
+    });
+
+    updateCount();
+  }
+
+  // Buttons All/None + period shortcuts (uses weeksForPeriod if available)
+  function setSelection(list){
+    selectedWeeks.clear();
+    list.forEach(w=>selectedWeeks.add(w));
+    refreshWeekList();
+  }
+
+  sec.querySelector("#pfAll").addEventListener("click", ()=>setSelection(getWeeksList()));
+  sec.querySelector("#pfNone").addEventListener("click", ()=>setSelection([]));
+
+  function periodWeeksSafe(k){
+    if(!weeksForPeriod_REF) return [];
+    try{
+      const w = weeksForPeriod_REF(k);
+      return Array.isArray(w) ? w : [];
+    }catch(e){ return []; }
+  }
+  sec.querySelector("#pfT1").addEventListener("click", ()=>setSelection(periodWeeksSafe("t1")));
+  sec.querySelector("#pfT2").addEventListener("click", ()=>setSelection(periodWeeksSafe("t2")));
+  sec.querySelector("#pfT3").addEventListener("click", ()=>setSelection(periodWeeksSafe("t3")));
+  sec.querySelector("#pfBonus").addEventListener("click", ()=>setSelection(periodWeeksSafe("bonus")));
+
+  // ---------- Template grid render ----------
+  const grid = sec.querySelector("#pfGrid");
+
+  function renderTemplateGrid(){
+    // header
+    grid.innerHTML = "";
+    const thead = document.createElement("thead");
+    const trh = document.createElement("tr");
+    const th0 = document.createElement("th");
+    th0.textContent = "Créneau";
+    trh.appendChild(th0);
+    DAYS_REF.forEach(d=>{
+      const th = document.createElement("th");
+      th.textContent = d.slice(0,3).toUpperCase();
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    grid.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+
+    SLOTS_REF.forEach(slot=>{
+      const tr = document.createElement("tr");
+
+      const td0 = document.createElement("td");
+      td0.textContent = slot;
+      tr.appendChild(td0);
+
+      DAYS_REF.forEach(day=>{
+        const td = document.createElement("td");
+        const act = (TEMPLATE[slot] && TEMPLATE[slot][day]) ? TEMPLATE[slot][day] : "Occupation";
+
+        const b = document.createElement("button");
+        b.className = "cell";
+        b.style.background = (COLORS_REF && COLORS_REF[act]) ? COLORS_REF[act] : "#444";
+        b.style.color = (act==="Occupation") ? "#777" : "#0f0f0f";
+        b.textContent = (act==="Occupation") ? "" : act;
+
+        b.addEventListener("click", ()=>openPicker(slot, day, act));
+        td.appendChild(b);
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    grid.appendChild(tbody);
+  }
+
+  // ---------- Picker modal ----------
+  const overlay = sec.querySelector("#pfOverlay");
+  const choices = sec.querySelector("#pfChoices");
+  const mSub = sec.querySelector("#pfMSub");
+  const mTitle = sec.querySelector("#pfMTitle");
+  let pickCtx = null;
+
+  function openPicker(slot, day, current){
+    pickCtx = {slot, day, current};
+    mTitle.textContent = slot + " — " + day;
+    mSub.textContent = "Choisis une activité pour le modèle";
+
+    choices.innerHTML = "";
+    ACTS_REF.forEach(a=>{
+      const btn = document.createElement("button");
+      btn.className = "choice" + (a===current ? " sel" : "");
+      btn.style.background = (COLORS_REF && COLORS_REF[a]) ? COLORS_REF[a] : "#444";
+      btn.style.color = (a==="Occupation") ? "#888" : "#0f0f0f";
+      btn.textContent = a;
+      btn.addEventListener("click", ()=>{
+        choices.querySelectorAll(".choice").forEach(x=>x.classList.remove("sel"));
+        btn.classList.add("sel");
+      });
+      choices.appendChild(btn);
+    });
+
+    overlay.classList.add("open");
+  }
+  function closePicker(){ overlay.classList.remove("open"); pickCtx=null; }
+
+  sec.querySelector("#pfCancel").addEventListener("click", closePicker);
+  overlay.addEventListener("click", (e)=>{ if(e.target===overlay) closePicker(); });
+
+  sec.querySelector("#pfOk").addEventListener("click", ()=>{
+    const sel = choices.querySelector(".choice.sel");
+    if(!sel || !pickCtx) return;
+    const val = sel.textContent;
+
+    TEMPLATE[pickCtx.slot] ||= {};
+    TEMPLATE[pickCtx.slot][pickCtx.day] = val;
+
+    closePicker();
+    renderTemplateGrid();
+  });
+
+  // ---------- Copy from week ----------
+  sec.querySelector("#pfCopyFromWeek").addEventListener("click", ()=>{
+    const w = parseInt(srcSel.value,10);
+    if(!Number.isFinite(w)) return;
+
+    const t = emptyTemplate();
+    for(const slot of SLOTS_REF){
+      for(const day of DAYS_REF){
+        t[slot][day] = getCell_REF(w, slot, day);
+      }
+    }
+    TEMPLATE = t;
+    saveTemplate(TEMPLATE);
+    toastSafe("Modèle copié depuis S" + w);
+    renderTemplateGrid();
+  });
+
+  // ---------- Clear / Save ----------
+  sec.querySelector("#pfClear").addEventListener("click", ()=>{
+    TEMPLATE = emptyTemplate();
+    saveTemplate(TEMPLATE);
+    toastSafe("Modèle vidé");
+    renderTemplateGrid();
+  });
+  sec.querySelector("#pfSave").addEventListener("click", ()=>{
+    saveTemplate(TEMPLATE);
+    toastSafe("Modèle enregistré");
+  });
+
+  // ---------- Apply to selected weeks ----------
+  sec.querySelector("#pfApply").addEventListener("click", ()=>{
+    const weeks = Array.from(selectedWeeks);
+    if(!weeks.length){
+      toastSafe("Aucune semaine cochée");
+      return;
+    }
+
+    const onlyEmpty = !!sec.querySelector("#pfOnlyEmpty").checked;
+    const includeOcc = !!sec.querySelector("#pfIncludeOccupation").checked;
+
+    let writes = 0;
+    for(const w of weeks){
+      for(const slot of SLOTS_REF){
+        for(const day of DAYS_REF){
+          const val = (TEMPLATE[slot] && TEMPLATE[slot][day]) ? TEMPLATE[slot][day] : "Occupation";
+
+          if(!includeOcc && val === "Occupation") continue; // on applique seulement ce qui est renseigné
+          if(onlyEmpty){
+            const cur = getCell_REF(w, slot, day);
+            if(cur !== "Occupation") continue;
+          }
+
+          setCell_REF(w, slot, day, val);
+          writes++;
+        }
+      }
+    }
+
+    toastSafe(`Modèle appliqué (${writes} cellules)`);
+    // rafraîchit la semaine affichée et les stats si dispo
+    try { if(renderWeek_REF) renderWeek_REF(); } catch(e){}
+    try { if(renderStats_REF) renderStats_REF(); } catch(e){}
+  });
+
+  // init
+  refreshWeekList();
+  renderTemplateGrid();
+
+})();
+/* ===== END ONGLET "PRÉ-REMPLISSAGE" ===== */
   
 </script>
 </body>
