@@ -985,11 +985,160 @@ function importFromCSV(text){
   renderStats();
 }
 
+// ===== Import CSV (2 formats) =====
+// Format A : tableau hebdo (ton cas) -> 1 fichier = 1 semaine
+//   ;Lundi;Mardi;...;Dimanche
+//   M1;Occupation;...;Réunion
+// Format B : table “détaillée” avec colonnes N° Semaine / Créneau (si tu l’utilises un jour)
+
+function detectDelimiter(line){
+  const semis = (line.match(/;/g)||[]).length;
+  const commas = (line.match(/,/g)||[]).length;
+  return semis >= commas ? ";" : ",";
+}
+
+function parseCSV(text){
+  const lines = text.replace(/\r/g,"").split("\n").filter(l=>l.trim()!=="");
+  if(lines.length === 0) return {header:[], rows:[]};
+
+  const delim = detectDelimiter(lines[0]);
+  const rows = [];
+
+  for(const rawLine of lines){
+    const out = [];
+    let cur = "";
+    let inQ = false;
+
+    for(let i=0;i<rawLine.length;i++){
+      const ch = rawLine[i];
+      if(ch === '"'){
+        if(inQ && rawLine[i+1] === '"'){ cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if(ch === delim && !inQ){
+        out.push(cur); cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    out.push(cur);
+    rows.push(out.map(x=>x.trim()));
+  }
+
+  return {header: rows[0], rows: rows.slice(1)};
+}
+
+// Cherche un numéro de semaine dans le nom de fichier: "Semaine 35-Tableau 1.csv"
+function weekFromFilename(filename){
+  const m = (filename||"").match(/semaine\s*(\d{1,2})/i);
+  if(m) return parseInt(m[1],10);
+  // fallback: premier nombre 1-52 trouvé
+  const n = (filename||"").match(/(\d{1,2})/);
+  if(n){
+    const v = parseInt(n[1],10);
+    if(v>=1 && v<=52) return v;
+  }
+  return null;
+}
+
+function importCSV(text, filename){
+  const {header, rows} = parseCSV(text);
+
+  // --- Détection format tableau hebdo (ton CSV)
+  // header typique: ["", "Lundi", "Mardi", ...]
+  const headerLow = header.map(h => (h||"").toLowerCase().trim());
+  const isWeekly =
+    headerLow.length >= 8 &&
+    headerLow.includes("lundi") &&
+    headerLow.includes("mardi") &&
+    headerLow.includes("mercredi") &&
+    headerLow.includes("jeudi") &&
+    headerLow.includes("vendredi");
+
+  if(isWeekly){
+    const week = weekFromFilename(filename) || parseInt(prompt("Numéro de semaine (1-52) ?"),10);
+    if(!week || week<1 || week>52){ toast("Import CSV annulé (semaine invalide)"); return; }
+
+    // colonnes jours = de 1 à 7 (car col0 = créneau)
+    const days = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+
+    let count = 0;
+    for(const r of rows){
+      const slot = (r[0]||"").trim();
+      if(!slot) continue;
+
+      for(let i=0;i<7;i++){
+        let v = (r[i+1]||"").trim();     // i+1 car r[0]=créneau
+        if(v==="" || v.toLowerCase()==="nan") v="Occupation";
+        setCell(week, slot, days[i], v);
+        count++;
+      }
+    }
+
+    toast(`Import CSV OK – S${week} (${count} cellules)`);
+    renderWeek(); renderVac(); renderStats();
+    return;
+  }
+
+  // --- Sinon on tente format "détaillé" (N° Semaine / Créneau / jours)
+  const norm = s => (s||"").toString().trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .replace(/[^a-z0-9 ]+/g," ").replace(/\s+/g," ").trim();
+
+  const findCol = (cands) => {
+    const H = header.map(norm);
+    for(const c of cands){
+      const cc = norm(c);
+      let idx = H.indexOf(cc);
+      if(idx>=0) return idx;
+      idx = H.findIndex(h=>h.includes(cc));
+      if(idx>=0) return idx;
+    }
+    return -1;
+  };
+
+  const iWeek = findCol(["n semaine","no semaine","numero semaine","semaine"]);
+  const iSlot = findCol(["creneau","créneau","slot"]);
+  const iMon  = findCol(["lundi","lun"]);
+  const iTue  = findCol(["mardi","mar"]);
+  const iWed  = findCol(["mercredi","mer"]);
+  const iThu  = findCol(["jeudi","jeu"]);
+  const iFri  = findCol(["vendredi","ven"]);
+  const iSat  = findCol(["samedi","sam"]);
+  const iSun  = findCol(["dimanche","dim"]);
+
+  const needed = [iWeek,iSlot,iMon,iTue,iWed,iThu,iFri,iSat,iSun];
+  if(needed.some(i=>i<0)){
+    toast("CSV non reconnu (format inconnu)");
+    return;
+  }
+
+  const days = ["Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi","Dimanche"];
+  const idxs = [iMon,iTue,iWed,iThu,iFri,iSat,iSun];
+
+  let count=0;
+  for(const r of rows){
+    const w = parseInt((r[iWeek]||"").trim(),10);
+    const slot = (r[iSlot]||"").trim();
+    if(!w || !slot) continue;
+
+    for(let i=0;i<7;i++){
+      let v = (r[idxs[i]]||"").trim();
+      if(v==="" || v.toLowerCase()==="nan") v="Occupation";
+      setCell(w, slot, days[i], v);
+      count++;
+    }
+  }
+
+  toast(`Import CSV OK (${count} cellules)`);
+  renderWeek(); renderVac(); renderStats();
+}
+
+// Event handler (utilise le nom du fichier pour trouver la semaine)
 document.getElementById("importCSV").addEventListener("change", async (e)=>{
   const file = e.target.files && e.target.files[0];
   if(!file) return;
   const text = await file.text();
-  importFromCSV(text);
+  importCSV(text, file.name);
   e.target.value = "";
 });
   
