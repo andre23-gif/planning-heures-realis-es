@@ -13,9 +13,8 @@
 
   <!-- Fonts: machine à écrire (UI) + manuscrite adulte (activités) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
-
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Petit+Formal+Script&family=Poiret+One&display=swap" rel="stylesheet">
   <style>
     :root{
       /* Fond bleu/jaune (vitrail Art nouveau) */
@@ -54,8 +53,9 @@
 
       /* Fonts */
       --font-ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-      --font-type: "Special Elite", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-      --font-hand: "Kalam", cursive;
+--font-type: "Special Elite", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+--font-hand: "Petit Formal Script", cursive;
+--font-deco: "Poiret One", system-ui, sans-serif;
     }
 
     *{box-sizing:border-box}
@@ -116,7 +116,34 @@
       color:#111827;
       border-color: rgba(0,0,0,0.06);
     }
+/* === Art déco UNIQUEMENT pour l'onglet + la page Semaine === */
 
+/* Onglet "Semaine" seulement */
+.tab[data-view="planning"]{
+  font-family: var(--font-deco);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* Dans la page Semaine : contrôles et en-têtes (pas les cellules activités) */
+#view-planning .pill,
+#view-planning select,
+#view-planning .btn,
+#view-planning .btn.secondary,
+#view-planning label,
+#view-planning th,
+#view-planning td:first-child{
+  font-family: var(--font-deco);
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+}
+
+/* Les activités restent manuscrites raffinées */
+#view-planning .cell{
+  font-family: var(--font-hand);
+  letter-spacing: normal;
+  text-transform: none;
+}
     main{max-width:1200px; margin:0 auto; padding:16px;}
     .views > section{display:none}
     .views > section.active{display:block}
@@ -639,21 +666,22 @@ const ACTIVITIES = ["Cours","CDC/suivi","Préparation","Instances","Parcours Ave
 
 /* Couleurs d'activités nettes (jewel tones, pas floues) */
 // Palette activités (Art nouveau doux) : claire, harmonisée, non criarde
+// Couleurs activités : dégradé bleu → vert → gris → or pâle (harmonisé, non criard)
 const COLORS = {
-  "Cours":            "#4DA3D9",  // bleu azur doux
-  "CDC/suivi":        "#5B7BE3",  // bleu pervenche
-  "Préparation":      "#E6A65C",  // ambre doux
-  "Instances":        "#B58AE6",  // violet lavande
-  "Parcours Avenir":  "#6FC7B0",  // turquoise doux
-  "Baroque":          "#E77B7B",  // rouge rosé
-  "Gestion":          "#A8B0BF",  // gris bleuté (au lieu d'onyx)
-  "Numérique":        "#69C17D",  // vert doux
-  "Coordination":     "#D7A36A",  // sable/cuivre clair
-  "Réunion":          "#5F8FB6",  // bleu acier
-  "Amicale":          "#E39AC3",  // rose poudré
-  "Autres":           "#C4B7A6",  // gris chaud
-  "Pépinières":       "#8FCF86",  // vert menthe
-  "Occupation":       "#F1F3F6"   // très clair, neutre (pas gris sale)
+  "Cours":           "#6AAFE6",  // bleu clair
+  "CDC/suivi":       "#5C9BD6",  // bleu moyen
+  "Préparation":     "#E9D7A6",  // or pâle
+  "Instances":       "#D7D2C6",  // gris chaud clair
+  "Parcours Avenir": "#7FD6C9",  // vert d'eau
+  "Baroque":         "#73C5B7",  // vert-bleu
+  "Gestion":         "#AEB8C6",  // gris bleuté
+  "Numérique":       "#6FCFB8",  // turquoise doux
+  "Coordination":    "#9FBAD8",  // bleu-gris clair
+  "Réunion":         "#7FAED6",  // bleu acier clair
+  "Amicale":         "#CFE2F3",  // bleu très clair
+  "Autres":          "#DDE2EA",  // gris clair neutre
+  "Pépinières":      "#9FD9AE",  // vert doux
+  "Occupation":      "#F4F6FA"   // quasi blanc (propre)
 };
 
 /* ======================================================
